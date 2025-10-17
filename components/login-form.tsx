@@ -130,12 +130,12 @@ export function LoginForm({
 
   return (
     <form
-      className={cn("flex flex-col gap-6 w-full", className)}
+      className={cn("flex flex-col gap-4 w-full max-w-md mx-auto", className)}
       onSubmit={handleEmailPassword}
       {...props}
     >
       <FieldGroup>
-        <div className="flex flex-col items-center gap-1 text-center mb-2">
+        <div className="flex flex-col items-center gap-1 text-center mb-1">
           <h1 className="text-2xl font-bold">Sign in</h1>
           <p className="text-muted-foreground text-sm">
             Sign in with email & password or continue with Google
@@ -148,7 +148,7 @@ export function LoginForm({
             <input
               id="email"
               type="email"
-              className="w-full rounded border px-3 py-2"
+              className="w-full rounded border px-3 py-1"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -164,7 +164,7 @@ export function LoginForm({
             <input
               id="password"
               type="password"
-              className="w-full rounded border px-3 py-2"
+              className="w-full rounded border px-3 py-1"
               placeholder="Your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

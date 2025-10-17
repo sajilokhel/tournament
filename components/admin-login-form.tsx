@@ -97,12 +97,12 @@ export function AdminLoginForm({
 
   return (
     <form
-      className={cn("flex flex-col gap-6 w-full", className)}
+      className={cn("flex flex-col gap-4 w-full max-w-md mx-auto", className)}
       onSubmit={handleEmailPassword}
       {...props}
     >
       <FieldGroup>
-        <div className="flex flex-col items-center gap-1 text-center mb-2">
+        <div className="flex flex-col items-center gap-1 text-center mb-1">
           <h1 className="text-2xl font-bold">Admin Sign in</h1>
           <p className="text-muted-foreground text-sm">
             Sign in with your admin email & password
@@ -115,7 +115,7 @@ export function AdminLoginForm({
             <input
               id="email"
               type="email"
-              className="w-full rounded border px-3 py-2"
+              className="w-full rounded border px-3 py-1"
               placeholder="admin@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -131,7 +131,7 @@ export function AdminLoginForm({
             <input
               id="password"
               type="password"
-              className="w-full rounded border px-3 py-2"
+              className="w-full rounded border px-3 py-1"
               placeholder="Your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -139,6 +139,7 @@ export function AdminLoginForm({
               disabled={loading}
             />
           </FieldContent>
+        </Field>
           <div className="mt-1 text-right">
             <button
               type="button"
