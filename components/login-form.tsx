@@ -22,6 +22,8 @@ import {
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
+import { mapAuthError } from "@/lib/auth";
 
 /**
  * Login form with email/password + Google
@@ -40,6 +42,8 @@ export function LoginForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const next = searchParams?.get("next") ?? "/";
 
   const redirectToRegisterWithEmail = (userEmail?: string) => {
@@ -76,6 +80,8 @@ export function LoginForm({
   const handleEmailPassword = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setError(null);
+    setEmailError(null);
+    setPasswordError(null);
     setLoading(true);
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
@@ -84,7 +90,11 @@ export function LoginForm({
       await checkUserDocAndRedirect(user.uid, user.email ?? undefined);
     } catch (err: any) {
       console.error("Email sign-in error:", err);
-      setError(err?.message ?? "Sign-in failed");
+      const info = mapAuthError(err);
+      if (info.field === "email") setEmailError(info.message);
+      if (info.field === "password") setPasswordError(info.message);
+      toast.error(info.message, { description: info.title });
+      setError(info.message);
     } finally {
       setLoading(false);
     }
@@ -93,6 +103,8 @@ export function LoginForm({
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError(null);
+    setEmailError(null);
+    setPasswordError(null);
     try {
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
@@ -101,28 +113,33 @@ export function LoginForm({
       await checkUserDocAndRedirect(user.uid, user.email ?? undefined);
     } catch (err: any) {
       console.error("Google sign-in error:", err);
-      setError(err?.message ?? "Google sign-in failed");
+      const info = mapAuthError(err);
+      toast.error(info.message, { description: info.title });
+      setError(info.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleNotImplemented = (providerName: string) => {
-    alert(`${providerName} login is not implemented yet.`);
+    toast.info(`${providerName} login is not implemented yet.`);
   };
 
   const handlePasswordReset = async () => {
     if (!email.trim()) {
-      alert("Please enter your email address first.");
+      const msg = "Please enter your email address first.";
+      setEmailError(msg);
+      toast.error(msg);
       return;
     }
     setResetLoading(true);
     try {
       await sendPasswordResetEmail(auth, email);
-      alert("Password reset email sent. Check your inbox.");
+      toast.success("Password reset email sent. Check your inbox.");
     } catch (err: any) {
       console.error("Password reset error:", err);
-      alert(err?.message ?? "Failed to send reset email");
+      const info = mapAuthError(err);
+      toast.error(info.message, { description: info.title });
     } finally {
       setResetLoading(false);
     }
@@ -154,7 +171,14 @@ export function LoginForm({
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
+              aria-invalid={!!emailError}
+              aria-describedby={emailError ? "email-error" : undefined}
             />
+            {emailError && (
+              <p id="email-error" className="text-sm text-destructive mt-1">
+                {emailError}
+              </p>
+            )}
           </FieldContent>
         </Field>
 
@@ -170,7 +194,14 @@ export function LoginForm({
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading}
+              aria-invalid={!!passwordError}
+              aria-describedby={passwordError ? "password-error" : undefined}
             />
+            {passwordError && (
+              <p id="password-error" className="text-sm text-destructive mt-1">
+                {passwordError}
+              </p>
+            )}
           </FieldContent>
           <div className="mt-1 text-right">
             <button

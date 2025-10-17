@@ -23,6 +23,9 @@ import { doc, getDoc } from "firebase/firestore";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+import { toast } from "sonner";
+import { mapAuthError } from "@/lib/auth";
+
 /**
  * Manager Login form with email/password + Google
  * - After successful sign-in we check that a users/{uid} document exists and role is manager.
@@ -42,6 +45,10 @@ export function ManagerLoginForm({
   const [resetLoading, setResetLoading] = useState(false);
   const next = searchParams?.get("next") ?? "/";
 
+  // Inline field errors for better UX
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
   const redirectToRegisterWithEmail = (userEmail?: string) => {
     const url = `/register/manager${userEmail ? `?email=${encodeURIComponent(userEmail)}` : ""}`;
     router.replace(url);
@@ -58,9 +65,10 @@ export function ManagerLoginForm({
         } else {
           // Wrong role, sign out and show error
           await signOut(auth);
-          setError(
-            "This account is not a manager account. Please use the appropriate login.",
-          );
+          const msg =
+            "This account is not a manager account. Please use the appropriate login.";
+          setError(msg);
+          toast.error(msg);
         }
       } else {
         // If user doc not present, sign out and send to register
@@ -69,13 +77,18 @@ export function ManagerLoginForm({
       }
     } catch (err) {
       console.error("Failed to verify user doc:", err);
-      setError("Failed to verify account. Try again later.");
+      const info = mapAuthError(err);
+      setError(info.message);
+      toast.error(info.message, { description: info.title });
     }
   };
 
   const handleEmailPassword = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    // clear previous UI errors
     setError(null);
+    setEmailError(null);
+    setPasswordError(null);
     setLoading(true);
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
@@ -84,7 +97,13 @@ export function ManagerLoginForm({
       await checkUserDocAndRedirect(user.uid, user.email ?? undefined);
     } catch (err: any) {
       console.error("Email sign-in error:", err);
-      setError(err?.message ?? "Sign-in failed");
+      const info = mapAuthError(err);
+      // Attach to appropriate fields
+      if (info.field === "email") setEmailError(info.message);
+      if (info.field === "password") setPasswordError(info.message);
+      // show toast for quick feedback
+      toast.error(info.message, { description: info.title });
+      setError(info.message);
     } finally {
       setLoading(false);
     }
@@ -93,6 +112,8 @@ export function ManagerLoginForm({
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError(null);
+    setEmailError(null);
+    setPasswordError(null);
     try {
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
@@ -101,7 +122,9 @@ export function ManagerLoginForm({
       await checkUserDocAndRedirect(user.uid, user.email ?? undefined);
     } catch (err: any) {
       console.error("Google sign-in error:", err);
-      setError(err?.message ?? "Google sign-in failed");
+      const info = mapAuthError(err);
+      toast.error(info.message, { description: info.title });
+      setError(info.message);
     } finally {
       setLoading(false);
     }
@@ -113,16 +136,19 @@ export function ManagerLoginForm({
 
   const handlePasswordReset = async () => {
     if (!email.trim()) {
-      alert("Please enter your email address first.");
+      const msg = "Please enter your email address first.";
+      setEmailError(msg);
+      toast.error(msg);
       return;
     }
     setResetLoading(true);
     try {
       await sendPasswordResetEmail(auth, email);
-      alert("Password reset email sent. Check your inbox.");
+      toast.success("Password reset email sent. Check your inbox.");
     } catch (err: any) {
       console.error("Password reset error:", err);
-      alert(err?.message ?? "Failed to send reset email");
+      const info = mapAuthError(err);
+      toast.error(info.message, { description: info.title });
     } finally {
       setResetLoading(false);
     }
@@ -154,7 +180,14 @@ export function ManagerLoginForm({
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
+              aria-invalid={!!emailError}
+              aria-describedby={emailError ? "email-error" : undefined}
             />
+            {emailError && (
+              <p id="email-error" className="text-sm text-destructive mt-1">
+                {emailError}
+              </p>
+            )}
           </FieldContent>
         </Field>
 
@@ -170,18 +203,25 @@ export function ManagerLoginForm({
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading}
+              aria-invalid={!!passwordError}
+              aria-describedby={passwordError ? "password-error" : undefined}
             />
-            <div className="mt-1 text-right">
-              <button
-                type="button"
-                onClick={handlePasswordReset}
-                disabled={resetLoading || loading}
-                className="text-sm text-muted-foreground hover:text-foreground underline"
-              >
-                {resetLoading ? "Sending..." : "Forgot password?"}
-              </button>
-            </div>
+            {passwordError && (
+              <p id="password-error" className="text-sm text-destructive mt-1">
+                {passwordError}
+              </p>
+            )}
           </FieldContent>
+          <div className="mt-1 text-right">
+            <button
+              type="button"
+              onClick={handlePasswordReset}
+              disabled={resetLoading || loading}
+              className="text-sm text-muted-foreground hover:text-foreground underline"
+            >
+              {resetLoading ? "Sending..." : "Forgot password?"}
+            </button>
+          </div>
         </Field>
 
         <Field>
