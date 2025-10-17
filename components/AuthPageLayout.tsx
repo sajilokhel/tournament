@@ -41,14 +41,6 @@ export default function AuthPageLayout({
       {/* Left: Form area with branding */}
       <div className="flex flex-col gap-4 p-6 md:p-10">
         {/* Branding/Logo Header */}
-        <div className="flex justify-center gap-2 md:justify-start">
-          <Link href="/" className="flex items-center gap-2 font-medium">
-            <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md">
-              <Trophy className="size-5" />
-            </div>
-            <span className="text-xl font-semibold">Futsal Manager</span>
-          </Link>
-        </div>
 
         {/* Form Container - Centered */}
         <div className="flex flex-1 items-center justify-center">
