@@ -18,7 +18,7 @@ export default function LoginPage() {
       {/* Right: Illustration / placeholder - show only on large screens */}
       <div className="relative hidden lg:flex items-center justify-center bg-gray-50 overflow-hidden">
         <img
-          src="/images/placeholder-login.svg"
+          src="/images/placeholder-login.jpg"
           alt="Illustration: person using phone to sign in"
           className="w-full h-full object-cover"
         />

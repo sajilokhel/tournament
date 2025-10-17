@@ -18,7 +18,7 @@ export default function LoginPage() {
       {/* Right: Illustration / placeholder - show only on large screens */}
       <div className="relative hidden lg:flex items-center justify-center bg-gray-50 overflow-hidden">
         <img
-          src="/images/placeholder-admin.svg"
+          src="/images/placeholder-admin.jpg"
           alt="Illustration: admin dashboard"
           className="w-full h-full object-cover"
         />
