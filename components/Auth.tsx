@@ -1,9 +1,7 @@
 "use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
+import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +11,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * Auth (professional)
@@ -24,16 +23,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
  * Uses shadcn-style UI components for a polished appearance.
  */
 export default function Auth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setChecking(false);
-    });
-    return unsub;
-  }, []);
+  const { user, loading, role } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -44,7 +34,7 @@ export default function Auth() {
   };
 
   // While checking auth state, render a small placeholder to avoid layout shift
-  if (checking) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center">
         <Button variant="ghost" size="sm" disabled>
@@ -93,11 +83,19 @@ export default function Auth() {
           <p className="text-xs text-muted-foreground">{user.email}</p>
         </div>
 
-        <DropdownMenuItem asChild>
-          <Link href="/profile">Profile</Link>
-        </DropdownMenuItem>
+        {role === "user" && (
+          <DropdownMenuItem asChild>
+            <Link href="/profile">Profile</Link>
+          </DropdownMenuItem>
+        )}
 
-        {user.email?.includes("admin") && (
+        {role === "manager" && (
+          <DropdownMenuItem asChild>
+            <Link href="/manager">Manager Dashboard</Link>
+          </DropdownMenuItem>
+        )}
+
+        {role === "admin" && (
           <DropdownMenuItem asChild>
             <Link href="/admin">Admin Panel</Link>
           </DropdownMenuItem>

@@ -24,12 +24,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 /**
- * Login form with email/password + Google
- * - After successful sign-in we check that a users/{uid} document exists.
- * - If the user document exists we redirect to `next` (or /).
- * - If it does not exist we sign the user out and redirect to /register with email prefilled.
+ * Manager Login form with email/password + Google
+ * - After successful sign-in we check that a users/{uid} document exists and role is manager.
+ * - If the user document exists and role is manager, redirect to `next` (or /).
+ * - If it does not exist or wrong role, sign the user out and redirect to /register/manager with email prefilled.
  */
-export function LoginForm({
+export function ManagerLoginForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
@@ -43,7 +43,7 @@ export function LoginForm({
   const next = searchParams?.get("next") ?? "/";
 
   const redirectToRegisterWithEmail = (userEmail?: string) => {
-    const url = `/register${userEmail ? `?email=${encodeURIComponent(userEmail)}` : ""}`;
+    const url = `/register/manager${userEmail ? `?email=${encodeURIComponent(userEmail)}` : ""}`;
     router.replace(url);
   };
 
@@ -53,13 +53,13 @@ export function LoginForm({
       const snap = await getDoc(userRef);
       if (snap.exists()) {
         const userData = snap.data();
-        if (userData.role === "user") {
+        if (userData.role === "manager") {
           router.replace(next);
         } else {
           // Wrong role, sign out and show error
           await signOut(auth);
           setError(
-            "This account is not a user account. Please use the appropriate login.",
+            "This account is not a manager account. Please use the appropriate login.",
           );
         }
       } else {
@@ -136,7 +136,7 @@ export function LoginForm({
     >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center mb-2">
-          <h1 className="text-2xl font-bold">Sign in</h1>
+          <h1 className="text-2xl font-bold">Sign in as Manager</h1>
           <p className="text-muted-foreground text-sm">
             Sign in with email & password or continue with Google
           </p>
@@ -171,17 +171,17 @@ export function LoginForm({
               required
               disabled={loading}
             />
+            <div className="mt-1 text-right">
+              <button
+                type="button"
+                onClick={handlePasswordReset}
+                disabled={resetLoading || loading}
+                className="text-sm text-muted-foreground hover:text-foreground underline"
+              >
+                {resetLoading ? "Sending..." : "Forgot password?"}
+              </button>
+            </div>
           </FieldContent>
-          <div className="mt-1 text-right">
-            <button
-              type="button"
-              onClick={handlePasswordReset}
-              disabled={resetLoading || loading}
-              className="text-sm text-muted-foreground hover:text-foreground underline"
-            >
-              {resetLoading ? "Sending..." : "Forgot password?"}
-            </button>
-          </div>
         </Field>
 
         <Field>
@@ -228,31 +228,14 @@ export function LoginForm({
         </Field>
 
         <Field>
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => handleNotImplemented("GitHub")}
-            className="flex items-center justify-center gap-2 w-full"
-          >
-            {/* GitHub mark (simple) */}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              className="w-5 h-5"
-            >
-              <path
-                fill="currentColor"
-                d="M12 .5C5.7.5.9 5.3.9 11.6c0 4.6 3 8.5 7.1 9.9.5.1.7-.2.7-.5v-1.9c-2.9.6-3.5-1.2-3.5-1.2-.5-1.3-1.2-1.6-1.2-1.6-1-.7.1-.7.1-.7 1.1.1 1.7 1.1 1.7 1.1 1 .1 1.6-.7 1.8-1 .1-.7.4-1.2.7-1.5-2.3-.3-4.7-1.1-4.7-5 0-1.1.4-2 1-2.7-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.7 1 1.6-.5 3.5-.8 5.3-.8 1.8 0 3.7.3 5.3.8 1.9-1.3 2.7-1 2.7-1 .6 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.5 4.7-4.9 5 .4.4.7 1 .7 2v3c0 .3.2.6.7.5 4.1-1.5 7.1-5.3 7.1-9.9C23.1 5.3 18.3.5 12 .5z"
-              />
-            </svg>
-            Login with GitHub
-          </Button>
-
           <div className="mt-2 text-center">
             <FieldDescription>
               Don&apos;t have an account?{" "}
-              <a href="/register" className="underline underline-offset-4">
-                Sign up
+              <a
+                href="/register/manager"
+                className="underline underline-offset-4"
+              >
+                Sign up as Manager
               </a>
             </FieldDescription>
           </div>

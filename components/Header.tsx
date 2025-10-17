@@ -40,8 +40,11 @@ export default function Header() {
     return unsub;
   }, []);
 
-  // Hide header on login page
-  if (pathname && pathname.startsWith("/login")) {
+  // Hide header on login and register pages
+  if (
+    pathname &&
+    (pathname.startsWith("/login") || pathname.startsWith("/register"))
+  ) {
     return null;
   }
 

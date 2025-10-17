@@ -1,118 +1,81 @@
-# Software Requirements Specification (SRS) for Futsal Web App
+# Fursal
+A website to find and view available Fursal grounds and to reserve them.
 
-## 1. Introduction
+## Stakeholders
 
-### 1.1 Purpose
-The purpose of this document is to outline the requirements for the development of a web application named "Futsal". This application will allow users to browse and view details of futsal venues, check availability of booking times, and book futsal slots through a payment process involving QR codes and manual verification by venue managers.
+### User
+- Register or sign in using Google or email/password (Firebase Auth).
+- Update profile and reset password.
+- Browse available Fursal grounds and view detailed information for each.
+- Book a Fursal ground:
+  1. Select a Fursal ground.
+  2. Choose date and time.
+  3. Enter personal details.
+  4. Confirm booking.
+  5. View a QR code for payment.
+  6. Upload payment screenshot (jpg, png, jpeg) and provide refund account details:
+     - Bank account
+     - E-Sewa account
+     - Users may replace the uploaded screenshot before verification.
+     - Users may cancel the booking before verification.
+     - If a booking cannot be completed, the manager will issue a refund using the provided account details.
+  7. Manager verifies the payment and updates booking status.
+  8. Booking status is shown in the user's view.
+  9. If verification fails, is refused, or the booking cannot proceed, the user is notified with the manager's reason.
+  10. If successful, the user is notified.
+- View booking history with statuses.
+- Leave a review and rating after a successful booking; update or delete reviews.
+- Search Fursal grounds by name, location, price range, rating, and availability.
+- View manager contact details.
 
-### 1.2 Scope
-The Futsal web app will provide the following functionalities:
-- Display a list of all available futsal places.
-- Show detailed information about each futsal place.
-- Display booked and free time slots for each futsal place.
-- Allow users to book time slots by initiating a payment process.
-- Integrate a payment system where users scan a QR code provided by the futsal manager, make the payment, upload a screenshot as proof, and await manual verification by the manager.
-- Provide an admin panel for managers to verify payments and update booking statuses.
+### Manager
+- Register or sign in using Google or email/password (Firebase Auth).
+- Update profile and reset password.
+- Add new Fursal grounds with details (name, location, price, description, images, availability, and QR code for eSewa or Nepali bank).
+- Update or delete Fursal ground listings.
+- View all bookings (verified and unverified) for their grounds.
+- Verify payments by checking uploaded screenshots.
+  - If a booking cannot proceed, refuse the booking and provide a reason.
+  - Refund the user to the provided account details and upload a refund screenshot.
+  - Update booking status (verified, unverified, refused).
+  - For refused bookings, track refund state: `in-process` or `complete`.
+- View reviews and ratings for their grounds.
+- Mark a verified booking as completed when the booking is fulfilled.
+- Search bookings by user name, date, or status.
+- View user contact details if needed.
+- View booking statistics (total, completed, cancelled, revenue) and user feedback.
 
-The app will be a web-based platform accessible via standard web browsers. It will not include mobile app development unless specified otherwise.
+### Admin (single admin account)
+- Sign in with email/password (Firebase Auth).
+- Manage managers:
+  - View all managers.
+  - Add or remove managers.
+  - Update manager information.
+- View all Fursal grounds and bookings.
+- View booking, refund, and revenue statistics across all grounds, with optional filtering by manager.
 
-### 1.3 Definitions, Acronyms, and Abbreviations
-- **Futsal**: A type of indoor soccer played in a smaller court.
-- **QR Code**: Quick Response Code, a two-dimensional barcode used for payment initiation.
-- **Admin Panel**: A restricted interface for futsal managers to manage bookings and verifications.
-- **User**: An individual accessing the app to view or book futsal slots.
-- **Manager**: The administrator of a futsal venue responsible for verifying payments.
+## Auth, Database, and Storage
+- Auth and database: use Firebase Auth and Firestore.
+- File storage: use UploadThing for uploads (payment and refund screenshots, ground images).
 
-### 1.4 References
-- None at this time.
+## UI Principles
+- Break features into multiple pages or clear sections; avoid cluttering a single page.
+- Simple, clean, and consistent design with clear navigation.
+- Responsive for mobile and desktop.
+- Consistent color palette and typography.
+- Clear call-to-action buttons and user-friendly forms.
+- Provide visual feedback (loading indicators, success/error messages).
+- Accessibility: alt text for images, keyboard navigation, and other accessibility best practices.
+- Use icons (e.g., `lucide`, `react-icons`) to enhance UX.
+- Use `shadcn` UI components and the `shadcn` CLI for consistent, faster development.
+- Use Tailwind CSS for styling.
 
-## 2. Overall Description
+## Firebase Rules
+- Implement Firestore security rules according to roles (user, manager, admin).
+- Create a `firebase-rules.md` file documenting which role can access each collection and the allowed operations.
 
-### 2.1 Product Perspective
-The Futsal web app is a standalone web application designed to facilitate the discovery and booking of futsal venues. It interfaces with payment systems via QR codes and relies on manual verification by venue managers. The app will use a database to store information about venues, bookings, and user interactions.
-
-### 2.2 Product Functions
-- **Venue Listing**: Retrieve and display a list of futsal places.
-- **Venue Details**: Show detailed information about a selected futsal place (e.g., location, facilities, contact info).
-- **Availability Check**: Display booked and free time slots for each venue.
-- **Booking Process**: Allow users to select a time slot, view the manager's QR code, make payment, upload screenshot, and submit for verification.
-- **Payment Verification**: Enable managers to review uploaded screenshots and confirm or reject bookings via an admin panel.
-- **Status Updates**: Automatically update booking statuses upon manager approval.
-
-### 2.3 User Characteristics
-- **General Users**: Individuals interested in playing futsal. They are expected to have basic computer literacy and access to a web browser and a device capable of scanning QR codes and uploading images.
-- **Venue Managers**: Staff or owners of futsal venues. They need access to an admin panel and should be familiar with basic administrative tasks.
-
-### 2.4 Constraints
-- The application must be responsive and compatible with modern web browsers (e.g., Chrome, Firefox, Safari).
-- Payment verification is manual and relies on manager intervention; no automated payment gateway integration is required.
-- The app must comply with data privacy regulations (e.g., GDPR if applicable).
-- Development should use standard web technologies (e.g., HTML, CSS, JavaScript, backend framework like Node.js or Python/Django).
-
-## 3. Specific Requirements
-
-### 3.1 External Interface Requirements
-
-#### 3.1.1 User Interfaces
-- **Home Page**: List of futsal places with search/filter options.
-- **Venue Detail Page**: Display venue information, map, and time slot availability.
-- **Booking Page**: Form for selecting time slot, displaying QR code, uploading screenshot.
-- **Admin Panel**: Dashboard for managers to view pending verifications and update statuses.
-
-#### 3.1.2 Hardware Interfaces
-- Standard web server hosting the application.
-- Database server for storing data.
-
-#### 3.1.3 Software Interfaces
-- Web browser for user access.
-- Firebase for authentication and data storage.
-- UploadThing for file storage (e.g., screenshots).
-
-### 3.2 Functional Requirements
-
-#### 3.2.1 Venue Management
-- **FR1**: The system shall display a list of all futsal places.
-- **FR2**: The system shall allow users to view detailed information about each futsal place, including name, address, facilities, and contact details.
-
-#### 3.2.2 Availability and Booking
-- **FR3**: The system shall display booked and free time slots for each futsal place.
-- **FR4**: The system shall allow users to select a free time slot for booking.
-
-#### 3.2.3 Payment and Verification
-- **FR5**: Upon booking selection, the system shall display the QR code associated with the futsal manager.
-- **FR6**: The system shall allow users to upload a screenshot of the payment confirmation.
-- **FR7**: The system shall submit the booking request for manual verification by the manager.
-- **FR8**: The system shall provide an admin panel for managers to review uploaded screenshots and approve or reject bookings.
-- **FR9**: Upon approval, the system shall update the booking status to "booked" and mark the time slot as unavailable.
-
-### 3.3 Non-Functional Requirements
-
-#### 3.3.1 Performance
-- The application shall load venue lists and details within 2 seconds under normal network conditions.
-- Booking submissions shall be processed within 5 seconds.
-
-#### 3.3.2 Security
-- User data (e.g., uploaded screenshots) shall be stored securely and only accessible to authorized managers.
-- The admin panel shall require authentication (e.g., username/password).
-
-#### 3.3.3 Usability
-- The interface shall be intuitive, with clear navigation and instructions for the booking process.
-
-#### 3.3.4 Reliability
-- The system shall have 99% uptime, excluding scheduled maintenance.
-
-#### 3.3.5 Maintainability
-- Code shall be modular and well-documented for future updates.
-
-## 4. Appendices
-
-### 4.1 Assumptions and Dependencies
-- QR codes will be provided by futsal managers and stored in the system.
-- Managers will have access to devices for verifying payments.
-- The application will use Firebase for user authentication and data storage.
-- The application will use UploadThing for storing uploaded files such as payment screenshots.
-
-### 4.2 Future Enhancements
-- Integration with automated payment gateways.
-- Mobile app version.
-- User accounts for booking history.
+## Typical User Flow
+1. User opens the website.
+2. If not signed in, the user is prompted to sign in or register.
+3. After signing in, the user is redirected to the dashboard.
+4. On the dashboard, the user sees available Fursal grounds and can proceed to view details or book.

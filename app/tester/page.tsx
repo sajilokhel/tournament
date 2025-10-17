@@ -11,6 +11,7 @@ import {
   where,
   deleteDoc,
   doc,
+  updateDoc,
 } from "firebase/firestore";
 
 import {
@@ -46,6 +47,12 @@ import { ArrowUpRightIcon } from "lucide-react";
  * it before deploying to production.
  */
 
+type UserDoc = {
+  id: string;
+  email?: string;
+  role?: string;
+};
+
 interface Venue {
   id: string;
   name: string;
@@ -56,6 +63,7 @@ interface Venue {
 
 export default function TesterPage() {
   const [venues, setVenues] = useState<Venue[]>([]);
+  const [users, setUsers] = useState<UserDoc[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Form state for creating a venue
@@ -74,18 +82,36 @@ export default function TesterPage() {
   }, []);
 
   async function fetchVenues() {
+    // fetch both venues and users so tester can manage roles too
     setLoading(true);
     try {
-      const q = collection(db, "venues");
-      const snap = await getDocs(q);
-      const list: Venue[] = snap.docs.map((d) => ({
+      // venues
+      const vSnap = await getDocs(collection(db, "venues"));
+      const list: Venue[] = vSnap.docs.map((d) => ({
         id: d.id,
         ...(d.data() as Omit<Venue, "id">),
       }));
       setVenues(list);
+
+      // users
+      try {
+        const uSnap = await getDocs(collection(db, "users"));
+        const userList: UserDoc[] = uSnap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as any),
+        }));
+        setUsers(userList);
+      } catch (uErr) {
+        console.warn(
+          "No users collection found or failed to fetch users",
+          uErr,
+        );
+        setUsers([]);
+      }
     } catch (err) {
       console.error("Failed to fetch venues", err);
       setVenues([]);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -434,6 +460,89 @@ export default function TesterPage() {
                           Create approved booking
                         </Button>
                       </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Users</CardTitle>
+          </CardHeader>
+
+          <CardContent>
+            {loading ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">
+                Loading users...
+              </div>
+            ) : users.length === 0 ? (
+              <div className="py-8 text-center">
+                <div className="text-sm text-muted-foreground">
+                  No users found. Create users by signing up or add user docs in
+                  Firestore (collection `users` with fields `email` and `role`).
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {users.map((u) => (
+                  <div
+                    key={u.id}
+                    className="flex items-center justify-between gap-4 p-3 border rounded-md"
+                  >
+                    <div>
+                      <div className="font-medium">{u.email ?? u.id}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Role: {u.role ?? "user"}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={u.role ?? "user"}
+                        onChange={async (e) => {
+                          const newRole = e.target.value;
+                          try {
+                            await updateDoc(doc(db, "users", u.id), {
+                              role: newRole,
+                            });
+                            // refresh list
+                            await fetchVenues();
+                          } catch (err) {
+                            console.error("Failed to update role", err);
+                            alert(
+                              "Failed to update role. Check console for details.",
+                            );
+                          }
+                        }}
+                        className="border rounded px-2 py-1 bg-background"
+                      >
+                        <option value="user">user</option>
+                        <option value="manager">manager</option>
+                        <option value="admin">admin</option>
+                      </select>
+
+                      <button
+                        onClick={async () => {
+                          // quick toggle between user <-> manager
+                          const newRole =
+                            u.role === "manager" ? "user" : "manager";
+                          try {
+                            await updateDoc(doc(db, "users", u.id), {
+                              role: newRole,
+                            });
+                            await fetchVenues();
+                          } catch (err) {
+                            console.error("Toggle role failed", err);
+                            alert("Failed to toggle role. See console.");
+                          }
+                        }}
+                        className="px-3 py-1 rounded bg-accent text-accent-foreground"
+                      >
+                        Toggle
+                      </button>
                     </div>
                   </div>
                 ))}
