@@ -4,6 +4,7 @@ import React from "react";
 import { Trophy } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import AuthRoleSwitcher from "@/components/AuthRoleSwitcher";
 
 interface AuthPageLayoutProps {
   heroImage: string;
