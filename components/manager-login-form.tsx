@@ -44,14 +44,16 @@ export function ManagerLoginForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
-  const next = searchParams?.get("next") ?? "/dashboard";
+  const next = searchParams?.get("next") ?? "/manager";
 
   // Inline field errors for better UX
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const redirectToRegisterWithEmail = (userEmail?: string) => {
-    const url = `/auth/register/manager${userEmail ? `?email=${encodeURIComponent(userEmail)}` : ""}`;
+    const url = `/auth/register/manager${
+      userEmail ? `?email=${encodeURIComponent(userEmail)}` : ""
+    }`;
     router.replace(url);
   };
 

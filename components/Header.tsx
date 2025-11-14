@@ -82,7 +82,7 @@ export default function Header() {
       return [{ href: "/admin", label: "Dashboard" }];
     }
     if (role === "manager") {
-      return [{ href: "/dashboard", label: "Dashboard" }];
+      return [{ href: "/manager", label: "Dashboard" }];
     }
     return [
       { href: "/", label: "Home" },

@@ -64,9 +64,16 @@ export default function AdminVenuesPage(): JSX.Element {
   const fetchVenues = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, "venues"), orderBy("createdAt", "desc"), limit(500));
+      const q = query(
+        collection(db, "venues"),
+        orderBy("createdAt", "desc"),
+        limit(500)
+      );
       const snap = await getDocs(q);
-      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Venue[];
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as any),
+      })) as Venue[];
       setVenues(list);
     } catch (err) {
       console.error("Failed to load venues", err);
@@ -138,7 +145,9 @@ export default function AdminVenuesPage(): JSX.Element {
   };
 
   const handleDelete = async (id: string) => {
-    const ok = window.confirm("Delete this venue? This action cannot be undone.");
+    const ok = window.confirm(
+      "Delete this venue? This action cannot be undone."
+    );
     if (!ok) return;
     try {
       await deleteDoc(doc(db, "venues", id));
@@ -159,7 +168,9 @@ export default function AdminVenuesPage(): JSX.Element {
 
         <CardContent>
           <div className="flex items-center justify-between mb-4">
-            <div className="text-sm text-muted-foreground">Manage venues used in the system</div>
+            <div className="text-sm text-muted-foreground">
+              Manage venues used in the system
+            </div>
             <div>
               <Button size="sm" variant="ghost" onClick={fetchVenues}>
                 Refresh
@@ -167,7 +178,10 @@ export default function AdminVenuesPage(): JSX.Element {
             </div>
           </div>
 
-          <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+          <form
+            onSubmit={handleCreate}
+            className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4"
+          >
             <div className="sm:col-span-1">
               <Input
                 placeholder="Venue name"
@@ -204,9 +218,13 @@ export default function AdminVenuesPage(): JSX.Element {
           <Separator className="my-4" />
 
           {loading ? (
-            <div className="text-sm text-muted-foreground py-6">Loading venues…</div>
+            <div className="text-sm text-muted-foreground py-6">
+              Loading venues…
+            </div>
           ) : venues.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-6">No venues found.</div>
+            <div className="text-sm text-muted-foreground py-6">
+              No venues found.
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -223,7 +241,10 @@ export default function AdminVenuesPage(): JSX.Element {
                     <TableRow key={v.id}>
                       <TableCell className="w-1/3">
                         {editingId === v.id ? (
-                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+                          <Input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                          />
                         ) : (
                           <div className="font-medium">{v.name ?? "—"}</div>
                         )}
@@ -231,9 +252,14 @@ export default function AdminVenuesPage(): JSX.Element {
 
                       <TableCell>
                         {editingId === v.id ? (
-                          <Input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} />
+                          <Input
+                            value={editAddress}
+                            onChange={(e) => setEditAddress(e.target.value)}
+                          />
                         ) : (
-                          <div className="text-sm text-muted-foreground">{v.address ?? "—"}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {v.address ?? "—"}
+                          </div>
                         )}
                       </TableCell>
 
@@ -241,10 +267,17 @@ export default function AdminVenuesPage(): JSX.Element {
                         <div className="flex items-center justify-end gap-2">
                           {editingId === v.id ? (
                             <>
-                              <Button size="sm" onClick={() => handleSaveEdit(v.id)}>
+                              <Button
+                                size="sm"
+                                onClick={() => handleSaveEdit(v.id)}
+                              >
                                 Save
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={cancelEdit}
+                              >
                                 Cancel
                               </Button>
                             </>
@@ -253,7 +286,11 @@ export default function AdminVenuesPage(): JSX.Element {
                               <Button size="sm" onClick={() => startEdit(v)}>
                                 Edit
                               </Button>
-                              <Button size="sm" variant="destructive" onClick={() => handleDelete(v.id)}>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDelete(v.id)}
+                              >
                                 Delete
                               </Button>
                             </>
