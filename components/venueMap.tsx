@@ -7,34 +7,18 @@ import {
   Marker,
   Popup,
   useMapEvents,
+  Tooltip,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L, { LatLng } from "leaflet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { UploadButton } from "@/lib/uploadthing";
-import { db } from "@/lib/firebase";
-import {
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  orderBy,
-  limit,
-  doc,
-  updateDoc,
-} from "firebase/firestore";
-import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import AddGround from "./addGround";
+import { useRouter } from "next/navigation";
 
-// Leaflet icon setup
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
@@ -57,7 +41,8 @@ const AddGroundMarker = ({
 };
 
 const VenueMap = () => {
-  const { user, role } = useAuth();
+  const { role } = useAuth();
+  const router = useRouter();
   const [futsalGrounds, setFutsalGrounds] = useState<any[]>([]);
   const [isAddingMode, setIsAddingMode] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -65,10 +50,6 @@ const VenueMap = () => {
   const [newGroundLocation, setNewGroundLocation] = useState<LatLng | null>(
     null
   );
-  const [groundName, setGroundName] = useState("");
-  const [groundDescription, setGroundDescription] = useState("");
-  const [groundPhoto, setGroundPhoto] = useState("");
-  const [creating, setCreating] = useState<boolean>(false);
 
   const [userLocation, setUserLocation] = useState<[number, number] | null>(
     null
@@ -127,40 +108,8 @@ const VenueMap = () => {
     }
   };
 
-  const handleAddGround = async () => {
-    if (!groundName.trim() || !groundPhoto || !user) {
-      toast.error("Please provide a name and an image for the venue.");
-      return;
-    }
-    setCreating(true);
-    try {
-      const newVenueRef = await addDoc(collection(db, "venues"), {
-        name: groundName.trim(),
-        description: groundDescription.trim() || null,
-        latitude: newGroundLocation?.lat || null,
-        longitude: newGroundLocation?.lng || null,
-        imageUrl: groundPhoto,
-        createdAt: new Date().toISOString(),
-        managerId: user.uid,
-      });
-
-      const userDocRef = doc(db, "users", user.uid);
-      await updateDoc(userDocRef, { groundId: newVenueRef.id });
-
-      setGroundName("");
-      setGroundDescription("");
-      setGroundPhoto("");
-      setNewGroundLocation(null);
-      setTempLocation(null);
-      setIsFormOpen(false);
-      toast.success("Venue created and assigned to you.");
-      fetchGrounds();
-    } catch (err) {
-      console.error("Create venue failed", err);
-      toast.error("Failed to create venue");
-    } finally {
-      setCreating(false);
-    }
+  const handleMarkerClick = (groundId: string) => {
+    router.push(`/venue/${groundId}`);
   };
 
   return (
@@ -188,52 +137,12 @@ const VenueMap = () => {
         )}
       </div>
 
-      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent style={{ zIndex: 1000 }}>
-          <DialogHeader>
-            <DialogTitle>Add New Futsal Ground</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              placeholder="Ground Name"
-              value={groundName}
-              onChange={(e) => setGroundName(e.target.value)}
-            />
-            <Textarea
-              placeholder="Ground Description"
-              value={groundDescription}
-              onChange={(e) => setGroundDescription(e.target.value)}
-            />
-            <UploadButton
-              endpoint="imageUploader"
-              appearance={{
-                button:
-                  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full",
-                container: "w-full",
-                allowedContent: "hidden",
-              }}
-              content={{
-                button: "Choose Image",
-              }}
-              onClientUploadComplete={(res) => {
-                if (res) {
-                  setGroundPhoto(res[0].url);
-                  toast.success("Image uploaded successfully");
-                }
-              }}
-              onUploadError={(error: Error) => {
-                toast.error(`ERROR! ${error.message}`);
-              }}
-            />
-            <Button
-              onClick={handleAddGround}
-              disabled={creating || !groundPhoto}
-            >
-              {creating ? "Adding..." : "Add Ground"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AddGround
+        newGroundLocation={newGroundLocation}
+        isFormOpen={isFormOpen}
+        setIsFormOpen={setIsFormOpen}
+        fetchGrounds={fetchGrounds}
+      />
 
       <div className="rounded-lg overflow-hidden border">
         <MapContainer
@@ -253,7 +162,7 @@ const VenueMap = () => {
           )}
           {userLocation && (
             <Marker position={userLocation}>
-              <Popup>You are here</Popup>
+              <Tooltip>You are here</Tooltip>
             </Marker>
           )}
           {searchedLocation && (
@@ -270,18 +179,13 @@ const VenueMap = () => {
             <Marker
               key={ground.id}
               position={[ground.latitude, ground.longitude]}
+              eventHandlers={{
+                click: () => handleMarkerClick(ground.id),
+              }}
             >
-              <Popup>
+              <Tooltip>
                 <h3>{ground.name}</h3>
-                <p>{ground.description}</p>
-                {ground.imageUrl && (
-                  <img
-                    src={ground.imageUrl}
-                    alt={ground.name}
-                    style={{ width: "100px" }}
-                  />
-                )}
-              </Popup>
+              </Tooltip>
             </Marker>
           ))}
         </MapContainer>

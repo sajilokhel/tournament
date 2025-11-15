@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   collection,
@@ -11,6 +11,8 @@ import {
   getDoc,
   updateDoc,
   writeBatch,
+  addDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -25,7 +27,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-const WeeklySlotsGrid = () => {
+interface WeeklySlotsGridProps {
+  groundId: string;
+}
+
+const WeeklySlotsGrid: React.FC<WeeklySlotsGridProps> = ({ groundId }) => {
   const { user } = useAuth();
   const [slots, setSlots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,328 +40,406 @@ const WeeklySlotsGrid = () => {
   const [isSlotUpdateDialogOpen, setIsSlotUpdateDialogOpen] = useState(false);
   const [isGenerateSlotsDialogOpen, setIsGenerateSlotsDialogOpen] =
     useState(false);
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [generatingSlots, setGeneratingSlots] = useState(false);
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("21:00");
-  const [groundId, setGroundId] = useState<string | null>(null);
+  const [pricePerHour, setPricePerHour] = useState(0);
+  const [isManager, setIsManager] = useState(false);
 
-  const fetchManagerData = async () => {
-    if (!user) return;
-
+  const fetchData = useCallback(async () => {
+    if (!groundId) return;
     setLoading(true);
     setError(null);
     try {
-      const userDocRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-        setError("Your user profile was not found.");
-        return;
-      }
-
-      const userData = userDoc.data();
-      const userGroundId = userData.groundId;
-      setGroundId(userGroundId);
-
-      if (!userGroundId) {
-        setError(
-          'You are a manager but have no ground assigned. Please add a ground from the "Venue Map" tab.'
-        );
-        setSlots([]);
-        return;
-      }
-
-      const groundDocRef = doc(db, "venues", userGroundId);
+      const groundDocRef = doc(db, "venues", groundId);
       const groundDoc = await getDoc(groundDocRef);
-      if (
-        groundDoc.exists() &&
-        groundDoc.data().startTime &&
-        groundDoc.data().endTime
-      ) {
-        const { startTime, endTime } = groundDoc.data();
-        setStartTime(startTime);
-        setEndTime(endTime);
+      if (!groundDoc.exists()) {
+        setError("This venue does not exist.");
+        setLoading(false);
+        return;
       }
-
+      const groundData = groundDoc.data();
+      setIsManager(user && groundData.managedBy === user.uid);
+      setPricePerHour(groundData.pricePerHour || 0);
+      if (groundData.startTime && groundData.endTime) {
+        setStartTime(groundData.startTime);
+        setEndTime(groundData.endTime);
+      }
       const today = new Date();
       const dates = [...Array(7)].map((_, i) => {
-        const date = new Date();
-        date.setDate(today.getDate() + i);
-        return date.toISOString().split("T")[0];
+        const d = new Date();
+        d.setDate(today.getDate() + i);
+        return d.toISOString().split("T")[0];
       });
-
       const slotsQuery = query(
         collection(db, "slots"),
-        where("groundId", "==", userGroundId),
+        where("groundId", "==", groundId),
         where("date", "in", dates)
       );
-
       const slotsSnapshot = await getDocs(slotsQuery);
-      const slotsData = slotsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setSlots(slotsData);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      setError("An error occurred while fetching your data.");
+      setSlots(slotsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setError("An error occurred while fetching data.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [groundId, user]);
 
   useEffect(() => {
-    if (user) {
-      fetchManagerData();
-    }
-  }, [user]);
+    fetchData();
+  }, [fetchData]);
 
-  const handleSlotClick = (slot: any) => {
-    if (slot) {
-      setSelectedSlot(slot);
+  const handleSlotClick = (slot: any, date: string, hour: string) => {
+    const now = new Date();
+    const slotDateTime = new Date(`${date}T${hour}`);
+    if (slotDateTime < now) {
+      toast.info("This slot is in the past.");
+      return;
+    }
+    const currentStatus = slot ? slot.status : "AVAILABLE";
+    if (isManager) {
+      setSelectedSlot(slot || { date, startTime: hour, groundId });
       setIsSlotUpdateDialogOpen(true);
+    } else {
+      if (currentStatus === "AVAILABLE") {
+        setSelectedSlot({
+          date,
+          startTime: hour,
+          groundId,
+          price: pricePerHour,
+        });
+        setIsBookingDialogOpen(true);
+      } else {
+        toast.info(`This slot is currently ${slot.status}.`);
+      }
     }
   };
 
   const handleUpdateSlotStatus = async (status: string) => {
     if (!selectedSlot) return;
-
     try {
-      const slotRef = doc(db, "slots", selectedSlot.id);
-      await updateDoc(slotRef, { status });
+      if (selectedSlot.id) {
+        await updateDoc(doc(db, "slots", selectedSlot.id), { status });
+      } else {
+        await addDoc(collection(db, "slots"), {
+          ...selectedSlot,
+          status,
+          createdAt: serverTimestamp(),
+        });
+      }
       toast.success(`Slot status updated to ${status}`);
       setIsSlotUpdateDialogOpen(false);
-      fetchManagerData();
+      fetchData();
     } catch (error) {
-      console.error("Error updating slot status:", error);
-      toast.error("Failed to update slot status");
+      console.error("Error updating slot:", error);
+      toast.error("Failed to update slot");
+    }
+  };
+
+  const handleConfirmBooking = async () => {
+    if (!selectedSlot || !user) return;
+    const { date, startTime, groundId, price } = selectedSlot;
+    try {
+      const batch = writeBatch(db);
+      batch.set(doc(collection(db, "bookings")), {
+        userId: user.uid,
+        venueId: groundId,
+        date,
+        startTime,
+        status: "CONFIRMED",
+        price,
+        createdAt: serverTimestamp(),
+      });
+      const existingSlot = slots.find(
+        (s) => s.date === date && s.startTime === startTime
+      );
+      if (existingSlot) {
+        batch.update(doc(db, "slots", existingSlot.id), { status: "BOOKED" });
+      } else {
+        batch.set(doc(collection(db, "slots")), {
+          groundId,
+          date,
+          startTime,
+          status: "BOOKED",
+          createdAt: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+      toast.success("Booking confirmed!");
+      setIsBookingDialogOpen(false);
+      fetchData();
+    } catch (error) {
+      console.error("Booking failed:", error);
+      toast.error("Failed to confirm booking.");
     }
   };
 
   const handleGenerateSlots = async () => {
-    if (!groundId) {
-      toast.error("Cannot generate slots without an assigned ground.");
-      return;
-    }
-
+    if (!groundId) return;
     setGeneratingSlots(true);
     const batch = writeBatch(db);
-
     try {
-      const weekDates = [...Array(7)].map((_, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() + i);
-        return date;
-      });
-
+      const dates = [...Array(7)].map(
+        (_, i) =>
+          new Date(new Date().setDate(new Date().getDate() + i))
+            .toISOString()
+            .split("T")[0]
+      );
       const startHour = parseInt(startTime.split(":")[0], 10);
       const endHour = parseInt(endTime.split(":")[0], 10);
-
-      weekDates.forEach((date) => {
+      dates.forEach((dateString) => {
         for (let hour = startHour; hour < endHour; hour++) {
-          const slotTime = `${hour.toString().padStart(2, "0")}:00`;
-          const dateString = date.toISOString().split("T")[0];
           const newSlotRef = doc(collection(db, "slots"));
           batch.set(newSlotRef, {
             groundId: groundId,
             date: dateString,
-            startTime: slotTime,
+            startTime: `${hour.toString().padStart(2, "0")}:00`,
+            endTime: `${(hour + 1).toString().padStart(2, "0")}:00`,
             status: "AVAILABLE",
-            createdAt: new Date().toISOString(),
+            createdAt: serverTimestamp(),
           });
         }
       });
-
-      const groundDocRef = doc(db, "venues", groundId);
-      batch.update(groundDocRef, { startTime, endTime });
-
+      batch.update(doc(db, "venues", groundId), { startTime, endTime });
       await batch.commit();
-      toast.success("Weekly slots have been generated successfully!");
+      toast.success("Weekly slots generated successfully!");
       setIsGenerateSlotsDialogOpen(false);
-      fetchManagerData();
+      fetchData();
     } catch (err) {
       console.error("Failed to generate slots", err);
-      toast.error("An error occurred while generating slots.");
+      toast.error("An error occurred during slot generation.");
     } finally {
       setGeneratingSlots(false);
     }
   };
 
-  const today = new Date();
-  const weekDates = [...Array(7)].map((_, i) => {
-    const date = new Date();
-    date.setDate(today.getDate() + i);
-    return date;
-  });
+  const getStatusInfo = (status: string | null) => {
+    if (!status)
+      return {
+        text: "Avail.",
+        color: "bg-green-200",
+        hover: "hover:bg-green-300",
+      };
+    switch (status.toUpperCase()) {
+      case "AVAILABLE":
+        return {
+          text: "Avail.",
+          color: "bg-green-200",
+          hover: "hover:bg-green-300",
+        };
+      case "BOOKED":
+        return {
+          text: "Booked",
+          color: "bg-yellow-400",
+          hover: "cursor-not-allowed",
+        };
+      case "RESERVED":
+        return {
+          text: "Reserv.",
+          color: "bg-orange-400",
+          hover: "hover:bg-orange-500",
+        };
+      case "BLOCKED":
+        return {
+          text: "Blocked",
+          color: "bg-red-400",
+          hover: "hover:bg-red-500",
+        };
+      default:
+        return { text: "", color: "bg-gray-100", hover: "" };
+    }
+  };
 
+  const weekDates = [...Array(7)].map(
+    (_, i) => new Date(new Date().setDate(new Date().getDate() + i))
+  );
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const gridHours = Array.from(
+    {
+      length:
+        parseInt(endTime.split(":")[0]) - parseInt(startTime.split(":")[0]),
+    },
+    (_, i) =>
+      `${(parseInt(startTime.split(":")[0]) + i)
+        .toString()
+        .padStart(2, "0")}:00`
+  );
 
-  const gridHours = (() => {
-    const start = parseInt(startTime.split(":")[0], 10);
-    const end = parseInt(endTime.split(":")[0], 10);
-    return Array.from(
-      { length: end - start },
-      (_, i) => `${(start + i).toString().padStart(2, "0")}:00`
-    );
-  })();
-
-  if (loading) {
-    return <div className="p-4">Loading...</div>;
-  }
-
-  if (error) {
+  if (loading) return <div className="p-4">Loading slots...</div>;
+  if (error)
     return (
-      <div className="p-4 text-red-500 bg-red-50 border border-red-200 rounded-md">
+      <div className="p-4 text-red-500 bg-red-100 border border-red-200 rounded-md">
         {error}
       </div>
     );
-  }
-
-  if (slots.length === 0) {
+  if (isManager && slots.length === 0) {
     return (
       <div className="p-4 text-center">
         <p className="text-muted-foreground mb-4">
-          No slots found for your assigned ground.
+          No slots have been generated for this venue.
         </p>
         <Button onClick={() => setIsGenerateSlotsDialogOpen(true)}>
           Generate Weekly Slots
         </Button>
-
-        <Dialog
-          open={isGenerateSlotsDialogOpen}
-          onOpenChange={setIsGenerateSlotsDialogOpen}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Generate Weekly Slots</DialogTitle>
-              <DialogDescription>
-                Define the operating hours for your venue. This will create
-                available slots for the next 7 days and save these hours for
-                future use.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="start-time" className="text-right">
-                  Start Time
-                </label>
-                <Input
-                  id="start-time"
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="end-time" className="text-right">
-                  End Time
-                </label>
-                <Input
-                  id="end-time"
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleGenerateSlots} disabled={generatingSlots}>
-                {generatingSlots ? "Generating..." : "Generate"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     );
   }
 
+  const renderSlot = (date: Date, hour: string, isMobile: boolean = false) => {
+    const dateString = date.toISOString().split("T")[0];
+    const slot = slots.find(
+      (s) => s.date === dateString && s.startTime === hour
+    );
+    const isPast = new Date(`${dateString}T${hour}`) < new Date();
+    const status = isPast ? null : slot ? slot.status : "AVAILABLE";
+    const statusInfo = getStatusInfo(status);
+    const canClick = !isPast && (isManager || status === "AVAILABLE");
+    const cellClass = isPast
+      ? "bg-gray-300 cursor-not-allowed"
+      : `${statusInfo.color} ${
+          canClick ? statusInfo.hover : "cursor-not-allowed"
+        }`;
+
+    return (
+      <div
+        key={`${dateString}-${hour}`}
+        className={`p-1 rounded-md text-center font-semibold ${
+          canClick ? "cursor-pointer" : ""
+        } ${cellClass} flex flex-col justify-center items-center ${
+          isMobile ? "h-16 text-xs" : "h-full text-sm"
+        }`}
+        onClick={() => canClick && handleSlotClick(slot, dateString, hour)}
+      >
+        {isMobile && (
+          <div className="text-xs">{`${hour.split(":")[0]}-${String(
+            parseInt(hour.split(":")[0]) + 1
+          ).padStart(2, "0")}`}</div>
+        )}
+        <div className="font-bold text-[11px] uppercase">
+          {isPast ? "Past" : statusInfo.text}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="p-4">
-      <div className="grid grid-cols-8 gap-1 text-center text-sm overflow-x-auto">
-        <div className="font-bold"></div>
+    <div className="w-full">
+      {isManager && (
+        <Button
+          onClick={() => setIsGenerateSlotsDialogOpen(true)}
+          className="mb-4"
+        >
+          Re-Generate Slots
+        </Button>
+      )}
+
+      {/* Mobile View */}
+      <div className="sm:hidden">
         {weekDates.map((date) => (
-          <div key={date.toISOString()} className="font-bold py-2">
-            <div>{days[date.getDay()]}</div>
-            <div className="text-xs text-muted-foreground">
-              {date.getDate()}
+          <div key={date.toISOString()} className="mb-4">
+            <h3 className="font-bold text-lg mb-2">
+              {days[date.getDay()]}{" "}
+              <span className="text-sm text-muted-foreground">
+                ({date.getDate()})
+              </span>
+            </h3>
+            <div className="grid grid-cols-3 gap-2">
+              {gridHours.map((hour) => renderSlot(date, hour, true))}
             </div>
           </div>
         ))}
-
-        {gridHours.map((hour) => {
-          const currentHour = parseInt(hour.split(":")[0], 10);
-          const nextHour = currentHour + 1;
-          const hourLabel = `${currentHour
-            .toString()
-            .padStart(2, "0")}:00 - ${nextHour.toString().padStart(2, "0")}:00`;
-
-          return (
-            <React.Fragment key={hour}>
-              <div className="font-bold py-2 whitespace-nowrap">
-                {hourLabel}
-              </div>
-              {weekDates.map((date) => {
-                const dateString = date.toISOString().split("T")[0];
-                const slot = slots.find(
-                  (s) => s.date === dateString && s.startTime === hour
-                );
-
-                let cellContent = " ";
-                let cellClass = "bg-gray-100 border";
-
-                if (slot) {
-                  switch (slot.status) {
-                    case "AVAILABLE":
-                      cellClass =
-                        "bg-green-200 hover:bg-green-300 cursor-pointer border";
-                      cellContent = "Available";
-                      break;
-                    case "BOOKED":
-                      cellClass = "bg-yellow-400 border cursor-not-allowed";
-                      cellContent = "Booked";
-                      break;
-                    case "RESERVED":
-                      cellClass =
-                        "bg-orange-400 hover:bg-orange-500 cursor-pointer border";
-                      cellContent = "Reserved";
-                      break;
-                    case "BLOCKED":
-                      cellClass =
-                        "bg-red-400 hover:bg-red-500 cursor-pointer border";
-                      cellContent = "Blocked";
-                      break;
-                    default:
-                      break;
-                  }
-                }
-
-                return (
-                  <div
-                    key={date.toISOString()}
-                    className={`p-2 rounded-md ${cellClass}`}
-                    onClick={() => handleSlotClick(slot)}
-                  >
-                    {cellContent}
-                  </div>
-                );
-              })}
-            </React.Fragment>
-          );
-        })}
       </div>
+
+      {/* Desktop View */}
+      <div className="hidden sm:block overflow-x-auto border rounded-lg">
+        <div
+          className="grid text-center text-sm"
+          style={{
+            gridTemplateColumns:
+              "minmax(120px, auto) repeat(7, minmax(90px, 1fr))",
+          }}
+        >
+          <div className="font-bold py-3 px-2 sticky left-0 bg-white z-20 border-b border-r">
+            Time
+          </div>
+          {weekDates.map((date) => (
+            <div
+              key={date.toISOString()}
+              className="font-bold py-3 px-2 border-b"
+            >
+              <div>{days[date.getDay()]}</div>
+              <div className="text-xs text-muted-foreground">
+                {date.getDate()}
+              </div>
+            </div>
+          ))}
+
+          {gridHours.map((hour, idx) => (
+            <React.Fragment key={hour}>
+              <div className="font-bold py-3 px-2 whitespace-nowrap text-xs flex items-center justify-center sticky left-0 bg-white z-10 border-r border-gray-200">{`${hour} - ${(
+                parseInt(hour.split(":")[0]) + 1
+              )
+                .toString()
+                .padStart(2, "0")}:00`}</div>
+              {weekDates.map((date) => (
+                <div key={date.toISOString()} className="p-2">
+                  {renderSlot(date, hour)}
+                </div>
+              ))}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+
+      {/* Dialogs */}
+      <Dialog
+        open={isGenerateSlotsDialogOpen}
+        onOpenChange={setIsGenerateSlotsDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Generate Weekly Slots</DialogTitle>
+            <DialogDescription>
+              Define the operating hours. This will create 'Available' slots for
+              the next 7 days and replace any existing slots.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Input
+              id="start-time"
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+            />
+            <Input
+              id="end-time"
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={handleGenerateSlots} disabled={generatingSlots}>
+              {generatingSlots ? "Generating..." : "Generate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog
         open={isSlotUpdateDialogOpen}
         onOpenChange={setIsSlotUpdateDialogOpen}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update Slot Status</DialogTitle>
+            <DialogTitle>Update Slot Status (Manager)</DialogTitle>
           </DialogHeader>
           {selectedSlot && (
             <p className="py-4">
-              Slot: {selectedSlot.date} at {selectedSlot.startTime}
+              Update slot for <strong>{selectedSlot.date}</strong> at{" "}
+              <strong>{selectedSlot.startTime}</strong>
             </p>
           )}
           <DialogFooter className="sm:justify-start">
@@ -377,6 +461,40 @@ const WeeklySlotsGrid = () => {
             >
               Block
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Your Booking</DialogTitle>
+          </DialogHeader>
+          {selectedSlot && (
+            <div className="py-4 space-y-1">
+              <p>
+                <strong>Date:</strong> {selectedSlot.date}
+              </p>
+              <p>
+                <strong>Time:</strong> {selectedSlot.startTime} -{" "}
+                {(parseInt(selectedSlot.startTime.split(":")[0]) + 1)
+                  .toString()
+                  .padStart(2, "0")}
+                :00
+              </p>
+              <p className="text-lg font-bold mt-2">
+                <strong>Price:</strong> Rs. {selectedSlot.price}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsBookingDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmBooking}>Confirm Booking</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
