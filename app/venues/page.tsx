@@ -14,7 +14,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Star } from "lucide-react";
-import PublicVenueMap from "@/components/PublicVenueMap";
+import dynamic from "next/dynamic";
+
+const PublicVenueMap = dynamic(() => import("@/components/PublicVenueMap"), {
+  ssr: false,
+});
 
 const VenueFilter = ({ setFilteredVenues, allVenues }) => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -50,7 +54,7 @@ const VenueFilter = ({ setFilteredVenues, allVenues }) => {
 
   return (
     <div className="p-4 border rounded-lg space-y-4">
-      <h3 class="text-lg font-semibold">Filter Venues</h3>
+      <h3 className="text-lg font-semibold">Filter Venues</h3>
       <Input
         placeholder="Search by name..."
         value={searchTerm}
@@ -235,7 +239,8 @@ const VenuesPage = () => {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold mb-6">Explore Futsal Venues</h1>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* This change prevents the map column from stretching */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:items-start">
         <div className="lg:col-span-1 flex flex-col gap-4">
           <VenueFilter
             allVenues={allVenues}
