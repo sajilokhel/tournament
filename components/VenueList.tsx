@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import {
   Card,
   CardHeader,
@@ -12,6 +12,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Venue {
   id: string;
@@ -21,12 +22,21 @@ interface Venue {
 }
 
 export default function VenueList() {
+  const { user } = useAuth();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchVenues = async () => {
-      const querySnapshot = await getDocs(collection(db, "venues"));
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      const q = query(
+        collection(db, "venues"),
+        where("managedBy", "==", user.uid)
+      );
+      const querySnapshot = await getDocs(q);
       const venueList = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -35,7 +45,7 @@ export default function VenueList() {
       setLoading(false);
     };
     fetchVenues();
-  }, []);
+  }, [user]);
 
   if (loading)
     return (
@@ -48,7 +58,7 @@ export default function VenueList() {
     return (
       <div className="p-8">
         <div className="text-center text-muted-foreground">
-          No venues available yet.
+          You are not managing any venues yet.
         </div>
       </div>
     );

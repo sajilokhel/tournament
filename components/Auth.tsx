@@ -13,15 +13,6 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 
-/**
- * Auth (professional)
- *
- * - When no user: show a prominent "Sign in" button linking to /login.
- * - When signed in: show an avatar trigger with a dropdown containing user info,
- *   link to admin panel (if applicable), and a sign out action.
- *
- * Uses shadcn-style UI components for a polished appearance.
- */
 export default function Auth() {
   const { user, loading, role } = useAuth();
 
@@ -33,7 +24,6 @@ export default function Auth() {
     }
   };
 
-  // While checking auth state, render a small placeholder to avoid layout shift
   if (loading) {
     return (
       <div className="flex items-center justify-center">
@@ -44,7 +34,6 @@ export default function Auth() {
     );
   }
 
-  // Not authenticated -> show Sign In button
   if (!user) {
     return (
       <Link href="/auth/login" className="inline-block">
@@ -55,7 +44,6 @@ export default function Auth() {
     );
   }
 
-  // Authenticated -> show avatar + dropdown menu
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -86,12 +74,6 @@ export default function Auth() {
         {role === "user" && (
           <DropdownMenuItem asChild>
             <Link href="/profile">Profile</Link>
-          </DropdownMenuItem>
-        )}
-
-        {role === "manager" && (
-          <DropdownMenuItem asChild>
-            <Link href="/manager">Manager Dashboard</Link>
           </DropdownMenuItem>
         )}
 

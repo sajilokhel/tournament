@@ -1,488 +1,325 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { db, auth } from "@/lib/firebase";
+
+import { useEffect, useState } from "react";
 import {
   doc,
   getDoc,
+  setDoc,
   collection,
+  addDoc,
+  getDocs,
   query,
   where,
-  getDocs,
-  addDoc,
+  orderBy,
+  serverTimestamp,
 } from "firebase/firestore";
-import { useUploadThing } from "@/lib/uploadthing-client";
-import { onAuthStateChanged, User } from "firebase/auth";
-import AuthGuard from "@/components/AuthGuard";
-
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/contexts/AuthContext";
+import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import VerifiedTick from "@/components/VerifiedTick";
+import { Star } from "lucide-react";
+import RatingModal from "@/components/RatingModal";
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
+  DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import WeeklySlotsGrid from "@/components/WeeklySlotsGrid";
 
-/**
- * Venue Detail - polished and unique design
- *
- * - Hero card with venue overview and prominent QR / booking CTA
- * - Fancy availability grid with slot cards and badges for status
- * - Dialog modal for booking flow that shows QR and upload input (uses UploadThing)
- * - Uses shadcn-style components for a cohesive look
- */
-
-interface Venue {
+interface Comment {
   id: string;
-  name: string;
-  address?: string;
-  facilities?: string;
-  qrCode?: string;
+  text: string;
+  author: string;
+  role: string;
+  createdAt: string;
 }
 
 interface Booking {
   id: string;
+  venueId: string;
+  userId: string;
   timeSlot: string;
   status: string;
-  userId: string;
-  screenshotUrl?: string;
+  createdAt: any;
+  rated?: boolean;
 }
 
-export default function VenueDetail() {
+const VenuePage = () => {
   const { id } = useParams();
-  const [venue, setVenue] = useState<Venue | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [screenshot, setScreenshot] = useState<File | null>(null);
-  const { startUpload, isUploading } = useUploadThing("imageUploader");
-
-  const timeSlots = [
-    "9:00 - 10:00",
-    "10:00 - 11:00",
-    "11:00 - 12:00",
-    "12:00 - 13:00",
-    "13:00 - 14:00",
-    "14:00 - 15:00",
-    "15:00 - 16:00",
-    "16:00 - 17:00",
-  ];
+  const [venue, setVenue] = useState<any>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const { user, role } = useAuth();
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+  const [bookingToRate, setBookingToRate] = useState<Booking | null>(null);
+  const [currentReview, setCurrentReview] = useState<{
+    rating?: number;
+    review?: string;
+  }>({});
+  const [isSlotDialogOpen, setIsSlotDialogOpen] = useState(false);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-    });
-    return unsub;
-  }, []);
+    const fetchVenue = async () => {
+      const docRef = doc(db, "venues", id as string);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const venueData = { id: docSnap.id, ...docSnap.data() };
+        setVenue(venueData);
+        if (venueData.imageUrls && venueData.imageUrls.length > 0) {
+          setSelectedImage(venueData.imageUrls[0]);
+        }
+      }
+    };
+
+    const fetchComments = async () => {
+      const q = query(
+        collection(db, `venues/${id}/comments`),
+        orderBy("createdAt", "desc")
+      );
+      const querySnapshot = await getDocs(q);
+      const commentsList = querySnapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() } as Comment)
+      );
+      setComments(commentsList);
+    };
+
+    if (id) {
+      fetchVenue();
+      fetchComments();
+    }
+  }, [id]);
 
   useEffect(() => {
-    if (!id) return;
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const docRef = doc(db, "venues", id as string);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setVenue({
-            id: docSnap.id,
-            ...(docSnap.data() as Omit<Venue, "id">),
+    const checkForUnratedBookings = async () => {
+      if (!user || !id) return;
+
+      const bookingsQuery = query(
+        collection(db, "bookings"),
+        where("userId", "==", user.uid),
+        where("venueId", "==", id),
+        where("status", "==", "completed"),
+        where("rated", "!=", true)
+      );
+
+      const querySnapshot = await getDocs(bookingsQuery);
+      if (!querySnapshot.empty) {
+        const booking = querySnapshot.docs[0].data() as Booking;
+        setBookingToRate({ ...booking, id: querySnapshot.docs[0].id });
+
+        const reviewDocRef = doc(db, "reviews", `${id}_${user.uid}`);
+        const reviewDocSnap = await getDoc(reviewDocRef);
+        if (reviewDocSnap.exists()) {
+          setCurrentReview({
+            rating: reviewDocSnap.data().rating,
+            review: reviewDocSnap.data().comment,
           });
         }
 
-        const q = query(collection(db, "bookings"), where("venueId", "==", id));
-        const snap = await getDocs(q);
-        const bookingList = snap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as any),
-        })) as Booking[];
-        setBookings(bookingList);
-      } catch (err) {
-        console.error("Failed to fetch venue/bookings", err);
-      } finally {
-        setLoading(false);
+        setIsRatingModalOpen(true);
       }
     };
-    fetchData();
-  }, [id]);
 
-  const isBooked = (slot: string) => {
-    return bookings.some((b) => b.timeSlot === slot && b.status === "approved");
-  };
+    checkForUnratedBookings();
+  }, [user, id]);
 
-  const handleOpenBooking = (slot: string) => {
-    if (!user) {
-      alert("Please sign in to book a slot.");
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !user) {
+      toast.error("Please write a comment and be logged in.");
       return;
     }
-    setSelectedSlot(slot);
-    setScreenshot(null);
-  };
 
-  const handleSubmitBooking = async () => {
-    if (!selectedSlot || !user || !venue) return;
-    if (!screenshot) {
-      alert("Please upload a screenshot of the payment before submitting.");
-      return;
-    }
-    setUploading(true);
-    try {
-      const res = await startUpload([screenshot]);
-      if (res && res[0]) {
-        await addDoc(collection(db, "bookings"), {
-          venueId: venue.id,
-          userId: user.uid,
-          timeSlot: selectedSlot,
-          status: "pending",
-          screenshotUrl: res[0].url,
-          createdAt: new Date().toISOString(),
-        });
-        alert("Booking submitted. Manager will verify and approve.");
-        setSelectedSlot(null);
-        // refresh bookings list
-        const q = query(collection(db, "bookings"), where("venueId", "==", id));
-        const snap = await getDocs(q);
-        const bookingList = snap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as any),
-        })) as Booking[];
-        setBookings(bookingList);
-      } else {
-        alert("Upload failed. Try again.");
-      }
-    } catch (err) {
-      console.error("Booking submission failed", err);
-      alert("Failed to submit booking.");
-    } finally {
-      setUploading(false);
-    }
-  };
+    const commentData = {
+      text: newComment,
+      author: user.displayName || user.email,
+      role: role,
+      createdAt: new Date().toISOString(),
+    };
 
-  if (loading) {
-    return (
-      <AuthGuard>
-        <div className="container mx-auto p-6">
-          <Card>
-            <CardContent>
-              <div className="py-12 text-center text-muted-foreground">
-                Loading venue…
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </AuthGuard>
+    const commentDocRef = await addDoc(
+      collection(db, `venues/${id}/comments`),
+      commentData
     );
-  }
+    setComments([{ id: commentDocRef.id, ...commentData }, ...comments]);
+    setNewComment("");
+
+    const reviewDocRef = doc(db, "reviews", `${id}_${user.uid}`);
+    await setDoc(
+      reviewDocRef,
+      {
+        venueId: id,
+        userId: user.uid,
+        comment: newComment,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    toast.success("Comment added successfully");
+  };
+
+  const handleCloseRatingModal = () => {
+    setIsRatingModalOpen(false);
+    setBookingToRate(null);
+  };
 
   if (!venue) {
     return (
-      <AuthGuard>
-        <div className="container mx-auto p-6">
-          <Card>
-            <CardContent>
-              <div className="py-12 text-center text-muted-foreground">
-                Venue not found.
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </AuthGuard>
+      <div className="flex items-center justify-center h-screen">
+        Loading...
+      </div>
     );
   }
 
+  const isManagerOfVenue =
+    user && role === "manager" && venue.managedBy === user.uid;
+
   return (
-    <AuthGuard>
-      <div className="container mx-auto space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          {/* Hero / Overview */}
-          <Card className="lg:col-span-2">
-            <CardHeader className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-bold">{venue.name}</h2>
-                {venue.address && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {venue.address}
-                  </p>
-                )}
-                {venue.facilities && (
-                  <p className="text-sm mt-3 text-foreground/80">
-                    {venue.facilities}
-                  </p>
-                )}
-              </div>
+    <div className="container mx-auto px-4 py-8">
+      {bookingToRate && (
+        <RatingModal
+          bookingId={bookingToRate.id}
+          venueId={id as string}
+          userId={user!.uid}
+          isOpen={isRatingModalOpen}
+          onClose={handleCloseRatingModal}
+          currentRating={currentReview.rating}
+          currentReview={currentReview.review}
+        />
+      )}
 
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-sm text-muted-foreground">
-                    Average rating
-                  </div>
-                  <div className="text-lg font-semibold">4.6 ★</div>
-                </div>
-                <Avatar>
-                  <AvatarImage
-                    src={venue.qrCode ?? undefined}
-                    alt={venue.name}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div>
+          <div
+            className="relative overflow-hidden mb-4 bg-gray-200 rounded-lg shadow-lg"
+            style={{ paddingTop: "56.25%" }}
+          >
+            <img
+              src={
+                selectedImage ||
+                "https://via.placeholder.com/1280x720?text=No+Image"
+              }
+              alt="Selected Venue"
+              className="absolute top-0 left-0 w-full h-full object-contain"
+            />
+          </div>
+          <div className="grid grid-cols-5 gap-2">
+            {venue.imageUrls &&
+              venue.imageUrls.map((image: string, index: number) => (
+                <div
+                  key={index}
+                  className={`relative overflow-hidden rounded-lg cursor-pointer hover:opacity-75 ${
+                    selectedImage === image
+                      ? "ring-2 ring-offset-2 ring-blue-500"
+                      : ""
+                  }`}
+                  style={{ paddingTop: "100%" }}
+                  onClick={() => setSelectedImage(image)}
+                >
+                  <img
+                    src={image}
+                    alt={`Venue thumbnail ${index + 1}`}
+                    className="absolute top-0 left-0 w-full h-full object-contain"
                   />
-                  <AvatarFallback>
-                    {(venue.name ?? "V").charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-            </CardHeader>
-
-            <CardContent className="pt-2">
-              <div className="flex flex-col md:flex-row gap-6">
-                <div className="flex-1">
-                  <div className="rounded-lg overflow-hidden bg-gradient-to-tr from-slate-50 to-white p-4">
-                    <h3 className="text-sm font-medium mb-2">
-                      About this venue
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {venue.facilities ?? "No additional details provided."}
-                    </p>
-                  </div>
-
-                  <Separator className="my-4" />
-
-                  <h4 className="text-sm font-medium mb-2">Availability</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {timeSlots.map((slot) => {
-                      const booked = isBooked(slot);
-                      return (
-                        <div
-                          key={slot}
-                          className={`rounded-lg p-3 border flex flex-col justify-between ${
-                            booked
-                              ? "bg-red-50 border-red-200"
-                              : "bg-white dark:bg-gray-900 border-gray-200"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm font-medium">{slot}</div>
-                            {booked ? (
-                              <Badge variant="destructive">Booked</Badge>
-                            ) : (
-                              <Badge variant="secondary">Free</Badge>
-                            )}
-                          </div>
-
-                          <div className="mt-3">
-                            {!booked ? (
-                              <Button
-                                size="sm"
-                                onClick={() => handleOpenBooking(slot)}
-                              >
-                                Book
-                              </Button>
-                            ) : (
-                              <Button size="sm" variant="outline" disabled>
-                                Unavailable
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
                 </div>
-
-                <div className="w-full md:w-72">
-                  <div className="sticky top-6">
-                    <Card>
-                      <CardContent>
-                        <div className="text-sm text-muted-foreground mb-2">
-                          Payment QR
-                        </div>
-                        <div className="w-full h-48 flex items-center justify-center bg-muted rounded-lg overflow-hidden">
-                          {venue.qrCode ? (
-                            <img
-                              src={venue.qrCode}
-                              alt="QR Code"
-                              className="max-w-full max-h-full object-contain"
-                            />
-                          ) : (
-                            <div className="text-sm text-muted-foreground">
-                              No QR provided
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="mt-4">
-                          <div className="text-sm text-muted-foreground">
-                            Need help?
-                          </div>
-                          <div className="text-sm mt-2">
-                            Upload your payment screenshot and our manager will
-                            verify it.
-                          </div>
-                        </div>
-                      </CardContent>
-
-                      <CardFooter>
-                        <Dialog
-                          open={!!selectedSlot}
-                          onOpenChange={() => setSelectedSlot(null)}
-                        >
-                          <DialogTrigger asChild>
-                            <Button variant="default" className="w-full">
-                              Start Booking
-                            </Button>
-                          </DialogTrigger>
-
-                          <DialogContent>
-                            <DialogTitle>Book a slot</DialogTitle>
-                            <DialogDescription>
-                              You're booking a slot at {venue.name}. Please scan
-                              the QR to pay and upload the payment screenshot
-                              below.
-                            </DialogDescription>
-
-                            <div className="mt-4">
-                              <div className="text-sm mb-2">Selected slot</div>
-                              <div className="text-lg font-medium">
-                                {selectedSlot ?? "—"}
-                              </div>
-
-                              <div className="mt-4">
-                                <label className="text-sm block mb-2">
-                                  Upload payment screenshot
-                                </label>
-                                <Input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => {
-                                    const f = e.target.files?.[0] ?? null;
-                                    setScreenshot(f);
-                                  }}
-                                />
-                                <div className="mt-2 text-sm text-muted-foreground">
-                                  {screenshot
-                                    ? `Selected: ${screenshot.name}`
-                                    : "No file chosen"}
-                                </div>
-                              </div>
-                            </div>
-
-                            <DialogFooter>
-                              <div className="flex items-center gap-2 w-full">
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setSelectedSlot(null)}
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  onClick={handleSubmitBooking}
-                                  disabled={uploading || !screenshot}
-                                >
-                                  {uploading
-                                    ? "Uploading…"
-                                    : "Submit for approval"}
-                                </Button>
-                              </div>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      </CardFooter>
-                    </Card>
-
-                    <div className="mt-4">
-                      <Card>
-                        <CardContent>
-                          <div className="text-sm text-muted-foreground">
-                            Manager
-                          </div>
-                          <div className="mt-2 flex items-center gap-3">
-                            <Avatar>
-                              <AvatarFallback>FM</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="text-sm font-medium">
-                                Futsal Manager
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                Usually replies within 24h
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Side panel: quick stats */}
-          <div className="space-y-4">
-            <Card>
-              <CardContent>
-                <div className="text-sm text-muted-foreground">Quick stats</div>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-md bg-slate-50 text-center">
-                    <div className="text-sm text-muted-foreground">
-                      Total bookings
-                    </div>
-                    <div className="text-lg font-semibold">
-                      {bookings.length}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-md bg-slate-50 text-center">
-                    <div className="text-sm text-muted-foreground">Pending</div>
-                    <div className="text-lg font-semibold">
-                      {bookings.filter((b) => b.status === "pending").length}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <div className="text-sm text-muted-foreground">Actions</div>
-                <div className="mt-3 flex flex-col gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={async () => {
-                      // quick refresh
-                      setLoading(true);
-                      const q = query(
-                        collection(db, "bookings"),
-                        where("venueId", "==", id),
-                      );
-                      const snap = await getDocs(q);
-                      setBookings(
-                        snap.docs.map((d) => ({
-                          id: d.id,
-                          ...(d.data() as any),
-                        })),
-                      );
-                      setLoading(false);
-                    }}
-                  >
-                    Refresh Bookings
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              ))}
           </div>
         </div>
+
+        <div>
+          <h1 className="text-4xl font-extrabold mb-2 tracking-tight">
+            {venue.name}
+          </h1>
+          <div className="flex items-center mb-4">
+            <div className="flex items-center">
+              {[...Array(5)].map((_, i) => (
+                <Star
+                  key={i}
+                  className="w-5 h-5 text-yellow-400 fill-current"
+                />
+              ))}
+              <span className="ml-2 text-gray-600">(No reviews yet)</span>
+            </div>
+          </div>
+          <p className="text-gray-700 mb-6">{venue.description}</p>
+
+          <div className="mb-6">
+            <p className="text-3xl font-bold text-gray-900">
+              Rs. {venue.pricePerHour}
+              <span className="text-lg font-normal text-gray-600">/hour</span>
+            </p>
+          </div>
+
+          {venue.attributes && Object.keys(venue.attributes).length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-2">Extra Features</h3>
+              <ul className="list-disc list-inside space-y-1 text-gray-700">
+                {Object.entries(venue.attributes).map(([key, value]) => (
+                  <li key={key}>
+                    <span className="font-semibold">{key}:</span>{" "}
+                    {value as string}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <Dialog open={isSlotDialogOpen} onOpenChange={setIsSlotDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="w-full">View Slots</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[95vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Time Slots</DialogTitle>
+              </DialogHeader>
+              <WeeklySlotsGrid groundId={id as string} />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
-    </AuthGuard>
+
+      <div className="mt-12 pt-8 border-t">
+        <h2 className="text-3xl font-bold mb-6">Reviews & Comments</h2>
+        {user && (
+          <div className="mb-8 p-4 bg-gray-50 rounded-lg">
+            <h3 className="font-semibold mb-2">Leave a Comment</h3>
+            <Textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Share your experience..."
+              className="mb-2"
+            />
+            <Button onClick={handleAddComment}>Post Comment</Button>
+          </div>
+        )}
+
+        <div className="space-y-6">
+          {comments.map((comment) => (
+            <div key={comment.id} className="flex items-start space-x-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center font-bold text-gray-600">
+                {comment.author.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-grow">
+                <div className="flex items-center mb-1">
+                  <p className="font-bold">{comment.author}</p>
+                  {comment.role === "manager" && <VerifiedTick />}
+                </div>
+                <p className="text-gray-700">{comment.text}</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {new Date(comment.createdAt).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
-}
+};
+
+export default VenuePage;
