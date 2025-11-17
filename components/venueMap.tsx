@@ -8,9 +8,10 @@ import {
   Marker,
   useMapEvents,
   Tooltip,
+  Popup,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import L, { LatLng } from "leaflet";
+import L, { LatLng, DivIcon } from "leaflet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -42,6 +43,82 @@ L.Icon.Default.mergeOptions({
   iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
   shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
 });
+
+// Custom user location marker with ripple effect
+const createUserLocationIcon = () => {
+  return L.divIcon({
+    className: "custom-user-location-marker",
+    html: `
+      <div style="position: relative; width: 40px; height: 40px;">
+        <div style="
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 16px;
+          height: 16px;
+          background: #3b82f6;
+          border: 3px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          z-index: 2;
+        "></div>
+        <div style="
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 40px;
+          height: 40px;
+          background: rgba(59, 130, 246, 0.3);
+          border-radius: 50%;
+          animation: ripple 2s infinite;
+          z-index: 1;
+        "></div>
+        <style>
+          @keyframes ripple {
+            0% {
+              transform: translate(-50%, -50%) scale(0.5);
+              opacity: 1;
+            }
+            100% {
+              transform: translate(-50%, -50%) scale(1.5);
+              opacity: 0;
+            }
+          }
+        </style>
+      </div>
+    `,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+  });
+};
+
+// Custom venue marker
+const createVenueIcon = (isSelected: boolean) => {
+  return L.divIcon({
+    className: "custom-venue-marker",
+    html: `
+      <div style="
+        width: 32px;
+        height: 40px;
+        position: relative;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+      ">
+        <svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 0C7.2 0 0 7.2 0 16c0 8.8 16 24 16 24s16-15.2 16-24C32 7.2 24.8 0 16 0z"
+                fill="${isSelected ? "#ef4444" : "#10b981"}"
+                stroke="white"
+                stroke-width="2"/>
+          <circle cx="16" cy="16" r="6" fill="white"/>
+        </svg>
+      </div>
+    `,
+    iconSize: [32, 40],
+    iconAnchor: [16, 40],
+    popupAnchor: [0, -40],
+  });
+};
 
 const AddGroundMarker = ({
   onLocationSelect,
@@ -470,12 +547,12 @@ const VenueMap = () => {
               />
 
               {userLocation && (
-                <Marker position={userLocation}>
-                  <Tooltip permanent>
-                    <div className="text-center">
-                      <strong>Your Location</strong>
+                <Marker position={userLocation} icon={createUserLocationIcon()}>
+                  <Popup>
+                    <div className="text-center font-semibold">
+                      📍 Your Location
                     </div>
-                  </Tooltip>
+                  </Popup>
                 </Marker>
               )}
 
@@ -502,15 +579,30 @@ const VenueMap = () => {
                 <Marker
                   key={ground.id}
                   position={[ground.latitude, ground.longitude]}
+                  icon={createVenueIcon(selectedVenue === ground.id)}
                   eventHandlers={{ click: () => handleMarkerClick(ground.id) }}
                 >
-                  <Tooltip>
-                    <div className="text-center">
-                      <strong>{ground.name}</strong>
-                      <br />
-                      <span className="text-xs">{ground.address}</span>
+                  <Popup>
+                    <div style={{ minWidth: "200px" }}>
+                      <div className="font-bold text-base mb-1">
+                        {ground.name}
+                      </div>
+                      <div className="text-sm text-gray-600 mb-2">
+                        📍 {ground.address}
+                      </div>
+                      {ground.facilities && (
+                        <div className="text-xs text-gray-500 mb-2">
+                          {ground.facilities}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => handleViewDetails(ground.id)}
+                        className="w-full bg-blue-500 hover:bg-blue-600 text-white text-sm py-1.5 px-3 rounded mt-2 transition-colors"
+                      >
+                        View Details
+                      </button>
                     </div>
-                  </Tooltip>
+                  </Popup>
                 </Marker>
               ))}
             </MapContainer>
