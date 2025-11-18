@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@/components/ui/visually-hidden";
 
 interface VenueGalleryProps {
   imageUrls: string[];
@@ -113,8 +114,11 @@ const VenueGallery = ({ imageUrls, venueName }: VenueGalleryProps) => {
 
       {/* Zoom Dialog */}
       <Dialog open={isZoomOpen} onOpenChange={setIsZoomOpen}>
-        <DialogContent className="max-w-7xl w-full p-0 bg-black/95">
-          <div className="relative w-full h-[90vh]">
+        <DialogContent className="!max-w-[95vw] !w-[95vw] !h-[95vh] p-0 bg-black/95 border-0 [&>button]:bg-white [&>button]:hover:bg-gray-100">
+          <VisuallyHidden>
+            <DialogTitle>Image Gallery - {venueName}</DialogTitle>
+          </VisuallyHidden>
+          <div className="relative w-full h-full">
             <img
               src={selectedImage}
               alt={`${venueName} - Full size`}

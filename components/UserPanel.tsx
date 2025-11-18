@@ -3,7 +3,6 @@
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +12,6 @@ import {
 } from "@/components/ui/dialog";
 import { Calendar, Clock, Shield, Users } from "lucide-react";
 import UserGuard from "@/components/UserGuard";
-import BookingForm from "@/components/BookingForm";
 import VenueGallery from "@/components/VenueGallery";
 import VenueHeader from "@/components/VenueHeader";
 import VenueDetails from "@/components/VenueDetails";
@@ -135,21 +133,17 @@ const UserPanel = ({ venue }: UserPanelProps) => {
             />
 
             {/* Booking Section */}
-            <Card className="shadow-lg border-2 border-blue-100">
+            <Card className="shadow-lg border-2 border-blue-100 pt-0 overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                <CardTitle className="text-xl flex items-center gap-2">
+                <CardTitle className="text-xl flex items-center gap-2 py-4">
                   <Calendar className="w-5 h-5 text-blue-600" />
                   Book Your Slot
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-6 space-y-4">
-                <BookingForm venueId={id as string} />
-
-                <Separator />
-
+              <CardContent className="pt-6">
                 <Dialog open={isSlotDialogOpen} onOpenChange={setIsSlotDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full" size="lg">
+                    <Button className="w-full" size="lg">
                       <Clock className="w-4 h-4 mr-2" />
                       View All Available Slots
                     </Button>
@@ -182,7 +176,7 @@ const UserPanel = ({ venue }: UserPanelProps) => {
           </div>
         </div>
 
-        <Separator className="my-12" />
+        <div className="my-12 border-t" />
 
         {/* Details Section - Full Width */}
         <div className="mb-12">
@@ -193,7 +187,7 @@ const UserPanel = ({ venue }: UserPanelProps) => {
           />
         </div>
 
-        <Separator className="my-12" />
+        <div className="my-12 border-t" />
 
         {/* Location Map */}
         {venue.latitude && venue.longitude && (
@@ -206,7 +200,7 @@ const UserPanel = ({ venue }: UserPanelProps) => {
                 address={venue.address}
               />
             </div>
-            <Separator className="my-12" />
+            <div className="my-12 border-t" />
           </>
         )}
 

@@ -83,8 +83,6 @@ const VenueHeader = ({
     ));
   };
 
-  const soldCount = Math.floor(Math.random() * 500) + 100; // Mock data
-
   return (
     <div className="space-y-6">
       {/* Breadcrumb / Category */}
@@ -128,10 +126,6 @@ const VenueHeader = ({
               <span className="font-semibold text-gray-900">{reviewCount}</span> Reviews
             </div>
             <div className="h-6 w-px bg-gray-300" />
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              <span><span className="font-semibold text-gray-900">{soldCount}</span> Booked</span>
-            </div>
           </>
         ) : (
           <div className="flex items-center gap-2 text-gray-500">

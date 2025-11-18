@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,25 +8,16 @@ import { Input } from "@/components/ui/input";
 import { MapPin, Navigation, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import "leaflet/dist/leaflet.css";
 
-// Dynamically import map components to avoid SSR issues
-const MapContainer = dynamic(
-  () => import("react-leaflet").then((mod) => mod.MapContainer),
-  { ssr: false }
-);
-const TileLayer = dynamic(
-  () => import("react-leaflet").then((mod) => mod.TileLayer),
-  { ssr: false }
-);
-const Marker = dynamic(
-  () => import("react-leaflet").then((mod) => mod.Marker),
-  { ssr: false }
-);
-const useMapEvents = dynamic(
-  () => import("react-leaflet").then((mod) => mod.useMapEvents),
-  { ssr: false }
-) as any;
+// Dynamically import the map component to avoid SSR issues
+const LocationPickerMap = dynamic(() => import("./LocationPickerMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[400px] rounded-lg overflow-hidden border-2 border-gray-200 flex items-center justify-center bg-gray-100">
+      <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+    </div>
+  ),
+});
 
 interface LocationPickerProps {
   latitude: number;
@@ -43,67 +34,6 @@ interface SearchResult {
   distance?: number;
 }
 
-// Component to handle map clicks and marker dragging
-const DraggableMarker = ({
-  position,
-  setPosition,
-}: {
-  position: [number, number];
-  setPosition: (pos: [number, number]) => void;
-}) => {
-  const markerRef = useRef<any>(null);
-  const [L, setL] = useState<any>(null);
-  const [mapEvents, setMapEvents] = useState<any>(null);
-
-  useEffect(() => {
-    // Load Leaflet only on client side
-    import("leaflet").then((module) => {
-      const leaflet = module.default;
-      // Fix for default Leaflet icon path issues with webpack
-      delete (leaflet.Icon.Default.prototype as any)._getIconUrl;
-      leaflet.Icon.Default.mergeOptions({
-        iconRetinaUrl:
-          "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
-        iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-      });
-      setL(leaflet);
-    });
-
-    import("react-leaflet").then((module) => {
-      setMapEvents(module.useMapEvents);
-    });
-  }, []);
-
-  if (mapEvents) {
-    mapEvents({
-      click(e: any) {
-        const newPos: [number, number] = [e.latlng.lat, e.latlng.lng];
-        setPosition(newPos);
-      },
-    });
-  }
-
-  if (!L) return null;
-
-  return (
-    <Marker
-      draggable={true}
-      position={position}
-      ref={markerRef}
-      eventHandlers={{
-        dragend() {
-          const marker = markerRef.current;
-          if (marker != null) {
-            const newPos = marker.getLatLng();
-            setPosition([newPos.lat, newPos.lng]);
-          }
-        },
-      }}
-    />
-  );
-};
-
 const LocationPicker = ({
   latitude,
   longitude,
@@ -115,13 +45,6 @@ const LocationPicker = ({
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-  const mapRef = useRef<any>(null);
-  const [isMounted, setIsMounted] = useState(false);
-
-  // Ensure component is mounted before rendering map
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   // Calculate distance between two coordinates (Haversine formula)
   const calculateDistance = (
@@ -176,11 +99,6 @@ const LocationPicker = ({
         setCurrentLat(newLat);
         setCurrentLng(newLng);
         onLocationChange(newLat, newLng);
-
-        // Fly to new location on map
-        if (mapRef.current) {
-          mapRef.current.flyTo([newLat, newLng], 15);
-        }
 
         toast.success("Location updated to your current position");
       },
@@ -240,11 +158,6 @@ const LocationPicker = ({
     setCurrentLat(lat);
     setCurrentLng(lon);
     onLocationChange(lat, lon);
-
-    // Fly to selected location on map
-    if (mapRef.current) {
-      mapRef.current.flyTo([lat, lon], 15);
-    }
 
     toast.success("Location selected");
     setSearchResults([]); // Clear results after selection
@@ -324,23 +237,11 @@ const LocationPicker = ({
         )}
 
         {/* Map */}
-        <div className="w-full h-[400px] rounded-lg overflow-hidden border-2 border-gray-200">
-          <MapContainer
-            center={[currentLat, currentLng]}
-            zoom={15}
-            style={{ width: "100%", height: "100%" }}
-            ref={mapRef}
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            />
-            <DraggableMarker
-              position={[currentLat, currentLng]}
-              setPosition={setPosition}
-            />
-          </MapContainer>
-        </div>
+        <LocationPickerMap
+          currentLat={currentLat}
+          currentLng={currentLng}
+          setPosition={setPosition}
+        />
 
         {/* Coordinates Display */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
