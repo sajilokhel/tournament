@@ -212,7 +212,7 @@ const UserBookingsPage = () => {
     try {
       console.log("🔍 Verifying payment status for booking:", booking.id);
 
-      // Call the verification API
+      // Call the verification API (server will handle booking confirmation)
       const verifyResponse = await fetch("/api/payment/verify", {
         method: "POST",
         headers: {
@@ -229,38 +229,30 @@ const UserBookingsPage = () => {
       console.log("✅ Verification response:", verificationData);
 
       if (verificationData.verified && verificationData.status === "COMPLETE") {
-        // Payment was successful but not recorded - update booking
-        const bookingRef = doc(db, "bookings", booking.id);
-        await updateDoc(bookingRef, {
-          status: "confirmed",
-          paymentTimestamp: serverTimestamp(),
-          esewaTransactionCode: verificationData.refId,
-          verifiedManually: true,
-        });
-
-        // Update venueSlots from hold to booking
-        const { bookSlot } = await import("@/lib/slotService");
-        await bookSlot(booking.venueId, booking.date, booking.startTime, {
-          bookingId: booking.id,
-          bookingType: "website",
-          status: "confirmed",
-          userId: booking.userId,
-        });
-
-        // Update local state
-        setBookings(
-          bookings.map((b) =>
-            b.id === booking.id
-              ? { ...b, status: "confirmed", esewaTransactionCode: verificationData.refId }
-              : b
-          )
-        );
-
-        toast.success("Payment verified! Booking confirmed.");
+        if (verificationData.alreadyConfirmed) {
+          toast.info("Booking is already confirmed.");
+        } else if (verificationData.bookingConfirmed) {
+          toast.success("Payment verified! Booking confirmed.");
+          
+          // Refresh bookings to get updated status
+          const q = query(
+            collection(db, "bookings"),
+            where("userId", "==", user?.uid),
+            orderBy("createdAt", "desc")
+          );
+          const querySnapshot = await getDocs(q);
+          const bookingsData = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          setBookings(bookingsData);
+        } else {
+          toast.success("Payment verified.");
+        }
       } else if (verificationData.status === "PENDING") {
         toast.info("Payment is still pending. Please try again later.");
       } else if (verificationData.status === "NOT_FOUND" || verificationData.status === "CANCELED") {
-        toast.error("Payment not found or was cancelled. Please make a new booking.");
+        toast.error("Payment not found or was cancelled.");
       } else {
         toast.warning(`Payment status: ${verificationData.status}`);
       }
