@@ -11,7 +11,8 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
-import { bookSlot, releaseHold } from "@/lib/slotService";
+import { releaseHold } from "@/lib/slotService";
+import { initiateEsewaPayment } from "@/lib/esewa/initiate";
 import {
   Card,
   CardContent,
@@ -164,38 +165,18 @@ const PaymentPage = () => {
     setIsProcessing(true);
 
     try {
-      // Convert hold to booking
-      await bookSlot(
-        booking.venueId,
-        booking.date,
-        booking.startTime,
-        {
-          bookingId: bookingId,
-          bookingType: "website",
-          status: "confirmed",
-          userId: user.uid,
-        }
+      // Initiate eSewa payment
+      // This will redirect the user to eSewa payment gateway
+      await initiateEsewaPayment(
+        bookingId,
+        booking.amount || booking.price || 0
       );
-
-      // Update booking document
-      const bookingRef = doc(db, "bookings", bookingId);
-      await updateDoc(bookingRef, {
-        status: "confirmed",
-        paymentTimestamp: serverTimestamp(),
-      });
-
-      toast.success("Booking confirmed! Your slot is reserved.");
-      router.push(`/user/bookings?highlight=${bookingId}`);
+      
+      // Note: User will be redirected to eSewa, so code after this won't execute
+      // Success/failure callbacks will handle the rest
     } catch (error: any) {
-      console.error("Payment confirmation error:", error);
-      toast.error(error.message || "Failed to confirm booking.");
-
-      const bookingDocRef = doc(db, "bookings", bookingId);
-      const freshBooking = await getDoc(bookingDocRef);
-      if (freshBooking.exists()) {
-        setBooking(freshBooking.data());
-      }
-    } finally {
+      console.error("Payment initiation error:", error);
+      toast.error(error.message || "Failed to initiate payment. Please try again.");
       setIsProcessing(false);
     }
   };
