@@ -30,10 +30,44 @@ export default function PaymentSuccessPage() {
 
   const verifyAndConfirmPayment = async () => {
     try {
-      // Get eSewa response parameters
-      const transactionUuid = searchParams.get("transaction_uuid");
-      const productCode = searchParams.get("product_code");
-      const refId = searchParams.get("refId");
+      // Get eSewa response - they send Base64 encoded data in 'data' parameter
+      const encodedData = searchParams.get("data");
+      console.log("📦 Encoded data:", encodedData);
+      
+      if (!encodedData) {
+        setStatus("error");
+        setMessage("Invalid payment response. Missing transaction data.");
+        return;
+      }
+
+      // Decode Base64 response
+      let responseData: any;
+      try {
+        const decodedString = atob(encodedData);
+        console.log("🔓 Decoded string:", decodedString);
+        responseData = JSON.parse(decodedString);
+        console.log("📋 Parsed response data:", responseData);
+      } catch (e) {
+        console.error("❌ Error decoding eSewa response:", e);
+        setStatus("error");
+        setMessage("Invalid payment response format.");
+        return;
+      }
+
+      // Extract transaction details from decoded data
+      const transactionUuid = responseData.transaction_uuid;
+      const productCode = responseData.product_code;
+      const transactionCode = responseData.transaction_code;
+      const esewaStatus = responseData.status;
+      const totalAmount = responseData.total_amount;
+
+      console.log("🔍 Extracted data:", {
+        transactionUuid,
+        productCode,
+        transactionCode,
+        esewaStatus,
+        totalAmount,
+      });
 
       if (!transactionUuid || !productCode) {
         setStatus("error");
@@ -41,8 +75,16 @@ export default function PaymentSuccessPage() {
         return;
       }
 
+      // Check if eSewa reported success
+      if (esewaStatus !== "COMPLETE") {
+        setStatus("error");
+        setMessage(`Payment not completed. Status: ${esewaStatus}`);
+        return;
+      }
+
       setBookingId(transactionUuid);
 
+      console.log("🔐 Verifying payment with eSewa API...");
       // Verify payment with eSewa
       const verifyResponse = await fetch("/api/payment/verify", {
         method: "POST",
@@ -52,12 +94,15 @@ export default function PaymentSuccessPage() {
         body: JSON.stringify({
           transactionUuid,
           productCode,
+          totalAmount, // Pass the total amount for verification
         }),
       });
 
       const verificationData = await verifyResponse.json();
+      console.log("✅ Verification response:", verificationData);
 
       if (!verificationData.verified || verificationData.status !== "COMPLETE") {
+        console.warn("⚠️ Verification failed:", verificationData);
         setStatus("error");
         setMessage(
           `Payment verification failed. Status: ${verificationData.status || "Unknown"}`
@@ -65,18 +110,22 @@ export default function PaymentSuccessPage() {
         return;
       }
 
+      console.log("📝 Getting booking document...");
       // Get booking details
       const bookingRef = doc(db, "bookings", transactionUuid);
       const bookingSnap = await getDoc(bookingRef);
 
       if (!bookingSnap.exists()) {
+        console.error("❌ Booking not found:", transactionUuid);
         setStatus("error");
         setMessage("Booking not found. Please contact support.");
         return;
       }
 
       const booking = bookingSnap.data();
+      console.log("📄 Booking data:", booking);
 
+      console.log("🔄 Converting hold to confirmed booking...");
       // Convert hold to confirmed booking in venueSlots
       await bookSlot(booking.venueId, booking.date, booking.startTime, {
         bookingId: transactionUuid,
@@ -85,18 +134,22 @@ export default function PaymentSuccessPage() {
         userId: booking.userId,
       });
 
+      console.log("💾 Updating booking document...");
       // Update booking document
       await updateDoc(bookingRef, {
         status: "confirmed",
         paymentTimestamp: serverTimestamp(),
-        esewaRefId: refId,
+        esewaTransactionCode: transactionCode,
         esewaTransactionUuid: transactionUuid,
+        esewaStatus: esewaStatus,
+        esewaAmount: totalAmount,
       });
 
+      console.log("🎉 Payment confirmed successfully!");
       setStatus("success");
       setMessage("Payment successful! Your booking has been confirmed.");
     } catch (error) {
-      console.error("Error verifying payment:", error);
+      console.error("❌ Error verifying payment:", error);
       setStatus("error");
       setMessage("An error occurred while verifying your payment. Please contact support.");
     }

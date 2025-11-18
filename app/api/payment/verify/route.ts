@@ -31,7 +31,9 @@ function generateVerificationSignature(transactionUuid: string): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { transactionUuid, productCode } = body;
+    const { transactionUuid, productCode, totalAmount } = body;
+
+    console.log('🔍 Verification request:', { transactionUuid, productCode, totalAmount });
 
     // Validate required parameters
     if (!transactionUuid || !productCode) {
@@ -54,7 +56,10 @@ export async function POST(request: NextRequest) {
     const signature = generateVerificationSignature(transactionUuid);
 
     // Prepare verification request
-    const verifyUrl = `${ESEWA_VERIFY_URL}?product_code=${productCode}&total_amount=0&transaction_uuid=${transactionUuid}`;
+    // Note: totalAmount must match the original transaction amount
+    const verifyUrl = `${ESEWA_VERIFY_URL}?product_code=${productCode}&total_amount=${totalAmount || 0}&transaction_uuid=${transactionUuid}`;
+    
+    console.log('📡 Calling eSewa verify URL:', verifyUrl);
     
     const verifyResponse = await fetch(verifyUrl, {
       method: 'GET',
@@ -65,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     if (!verifyResponse.ok) {
       const errorText = await verifyResponse.text();
-      console.error('eSewa verification failed:', errorText);
+      console.error('❌ eSewa verification failed:', errorText);
       return NextResponse.json(
         { 
           error: 'Payment verification failed',
@@ -77,6 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     const verificationData: EsewaVerificationResponse = await verifyResponse.json();
+    console.log('✅ eSewa verification response:', verificationData);
 
     // Check if payment was completed
     const isVerified = verificationData.status === 'COMPLETE';

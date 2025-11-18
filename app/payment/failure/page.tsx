@@ -19,8 +19,22 @@ export default function PaymentFailurePage() {
   const [transactionUuid, setTransactionUuid] = useState<string | null>(null);
 
   useEffect(() => {
-    const uuid = searchParams.get("transaction_uuid");
-    setTransactionUuid(uuid);
+    // Try to get transaction UUID from either 'data' parameter or direct parameter
+    const encodedData = searchParams.get("data");
+    
+    if (encodedData) {
+      try {
+        const decodedString = atob(encodedData);
+        const responseData = JSON.parse(decodedString);
+        setTransactionUuid(responseData.transaction_uuid);
+      } catch (e) {
+        console.error("Error decoding eSewa failure response:", e);
+      }
+    } else {
+      // Fallback to direct parameter
+      const uuid = searchParams.get("transaction_uuid");
+      setTransactionUuid(uuid);
+    }
   }, [searchParams]);
 
   return (
