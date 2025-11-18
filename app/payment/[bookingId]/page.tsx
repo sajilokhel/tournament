@@ -93,7 +93,7 @@ const PaymentPage = () => {
 
         if (!isMounted) return;
 
-        const venueRef = doc(db, "grounds", bookingData.venueId);
+        const venueRef = doc(db, "venues", bookingData.venueId);
         const venueSnap = await getDoc(venueRef);
 
         if (venueSnap.exists()) {

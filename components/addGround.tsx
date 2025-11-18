@@ -154,7 +154,7 @@ const AddGround = ({
     setCreating(true);
     try {
       // Create venue document
-      const newVenueRef = await addDoc(collection(db, "grounds"), {
+      const newVenueRef = await addDoc(collection(db, "venues"), {
         name: groundName.trim(),
         description: groundDescription.trim() || null,
         latitude: latitude,
@@ -169,7 +169,7 @@ const AddGround = ({
           return acc;
         }, {} as { [key: string]: string }),
         createdAt: new Date().toISOString(),
-        managerId: user.uid,
+        managedBy: user.uid,
       });
 
       // Initialize slot configuration
@@ -198,14 +198,6 @@ const AddGround = ({
       
       setIsFormOpen(false);
       toast.success("Venue created successfully with slot configuration!");
-      fetchGrounds();
-    } catch (err) {
-      console.error("Create venue failed", err);
-      toast.error("Failed to create venue");
-    } finally {
-      setCreating(false);
-    }
-  };
       fetchGrounds();
     } catch (err) {
       console.error("Create venue failed", err);
@@ -512,6 +504,6 @@ const AddGround = ({
       </DialogContent>
     </Dialog>
   );
-};
+}
 
 export default AddGround;

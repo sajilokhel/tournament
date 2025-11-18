@@ -121,10 +121,10 @@ const WeeklySlotsGrid: React.FC<WeeklySlotsGridProps> = ({ groundId }) => {
       }
 
       try {
-        const venueDoc = await getDoc(doc(db, "grounds", groundId));
+        const venueDoc = await getDoc(doc(db, "venues", groundId));
         if (venueDoc.exists()) {
           const venueData = venueDoc.data();
-          const userIsManager = venueData.managerId === user.uid;
+          const userIsManager = venueData.managedBy === user.uid;
           setIsManager(userIsManager);
         }
       } catch (error) {
