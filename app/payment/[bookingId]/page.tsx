@@ -102,15 +102,10 @@ const PaymentPage = () => {
 
         if (
           bookingData.status === "pending_payment" &&
-          bookingData.createdAt
+          bookingData.holdExpiresAt
         ) {
           const now = Timestamp.now();
-          const expiryTime = new Timestamp(
-            bookingData.createdAt.seconds + 5 * 60,
-            bookingData.createdAt.nanoseconds
-          );
-
-          const remaining = expiryTime.seconds - now.seconds;
+          const remaining = bookingData.holdExpiresAt.seconds - now.seconds;
 
           if (remaining > 0) {
             console.log(`⏱️ Time left: ${remaining}s`);

@@ -17,6 +17,7 @@ import {
   addDoc,
   collection,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 import {
   reconstructSlots,
@@ -266,6 +267,10 @@ const WeeklySlotsGrid: React.FC<WeeklySlotsGridProps> = ({ groundId }) => {
         5 // 5 minutes hold
       );
 
+      // Calculate hold expiry (5 minutes from now)
+      const now = Date.now();
+      const holdExpiresAt = new Date(now + 5 * 60 * 1000); // 5 minutes
+
       // 2. Create booking document
       const bookingData = {
         venueId: groundId,
@@ -275,6 +280,7 @@ const WeeklySlotsGrid: React.FC<WeeklySlotsGridProps> = ({ groundId }) => {
         endTime: selectedSlot.endTime,
         status: "pending_payment",
         bookingType: "website",
+        holdExpiresAt: Timestamp.fromDate(holdExpiresAt),
         createdAt: serverTimestamp(),
         amount: 1000, // TODO: Get from venue pricing
       };
