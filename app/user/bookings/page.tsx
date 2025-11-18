@@ -34,6 +34,7 @@ import {
   Clock,
   XCircle,
   AlertTriangle,
+  AlertCircle,
   MapPin,
   Calendar as CalendarIcon,
   Download,
@@ -392,6 +393,26 @@ const UserBookingsPage = () => {
         toast.info("Payment is still pending. Please try again later.");
       } else if (verificationData.status === "NOT_FOUND" || verificationData.status === "CANCELED") {
         toast.error("Payment not found or was cancelled.");
+        
+        // Update booking status to not_found for categorization
+        const bookingRef = doc(db, "bookings", booking.id);
+        await updateDoc(bookingRef, {
+          status: "not_found",
+          verificationFailedAt: serverTimestamp(),
+        });
+        
+        // Refresh bookings
+        const q = query(
+          collection(db, "bookings"),
+          where("userId", "==", user?.uid),
+          orderBy("createdAt", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        const bookingsData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setBookings(bookingsData);
       } else {
         toast.warning(`Payment status: ${verificationData.status}`);
       }
@@ -433,6 +454,13 @@ const UserBookingsPage = () => {
           <Badge variant="secondary" className="bg-gray-500">
             <AlertTriangle className="w-3 h-3 mr-1" />
             Expired
+          </Badge>
+        );
+      case "not_found":
+        return (
+          <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">
+            <XCircle className="w-3 h-3 mr-1" />
+            Not Found
           </Badge>
         );
       default:
@@ -480,6 +508,11 @@ const UserBookingsPage = () => {
   const cancelledOrExpired = bookings.filter((b) => {
     const statusLower = b.status.toLowerCase();
     return statusLower === "cancelled" || statusLower === "expired";
+  });
+
+  const notFoundBookings = bookings.filter((b) => {
+    const statusLower = b.status.toLowerCase();
+    return statusLower === "not_found";
   });
 
   const highlightedBookingId = searchParams.get("highlight");
@@ -796,7 +829,7 @@ const UserBookingsPage = () => {
 
       {/* Cancelled/Expired Section */}
       {cancelledOrExpired.length > 0 && (
-        <div>
+        <div className="mb-10">
           <div className="flex items-center gap-2 mb-4">
             <XCircle className="w-5 h-5 text-muted-foreground" />
             <h2 className="text-2xl font-bold">Cancelled & Expired</h2>
@@ -845,6 +878,47 @@ const UserBookingsPage = () => {
                     )}
                   </Button>
                 </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Payment Not Found Section */}
+      {notFoundBookings.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertCircle className="w-5 h-5 text-orange-500" />
+            <h2 className="text-2xl font-bold">Payment Not Found</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            These bookings could not be verified with the payment gateway. The payment may have been cancelled or not completed.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {notFoundBookings.map((booking) => (
+              <Card key={booking.id} className="opacity-70 border-orange-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">
+                    {venues[booking.venueId]?.name || "Loading..."}
+                  </CardTitle>
+                  {getStatusBadge(booking.status)}
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <p className="text-sm">
+                    <strong>Date:</strong> {booking.date}
+                  </p>
+                  <p className="text-sm">
+                    <strong>Time:</strong> {booking.startTime}
+                  </p>
+                  <p className="text-sm">
+                    <strong>Amount:</strong> Rs. {booking.amount || booking.price || 0}
+                  </p>
+                  {booking.verificationFailedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Verified: {new Date(booking.verificationFailedAt.toDate()).toLocaleString()}
+                    </p>
+                  )}
+                </CardContent>
               </Card>
             ))}
           </div>
