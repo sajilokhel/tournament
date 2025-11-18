@@ -13,8 +13,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Star } from "lucide-react";
+import { Star, Map, List, MapPin } from "lucide-react";
 import dynamic from "next/dynamic";
+import { LocationPermissionBanner } from "@/components/LocationPermissionBanner";
 
 const PublicVenueMap = dynamic(() => import("@/components/PublicVenueMap"), {
   ssr: false,
@@ -202,31 +203,32 @@ const VenuesPage = () => {
     27.7172, 85.324,
   ]);
   const [mapZoom, setMapZoom] = useState(12);
+  const [showLocationBanner, setShowLocationBanner] = useState(false);
+  const [mobileView, setMobileView] = useState<"list" | "map">("list");
 
-  useEffect(() => {
-    // Get user's location with high accuracy
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserLocation([latitude, longitude]);
-          setMapCenter([latitude, longitude]);
-          setMapZoom(14);
-        },
-        (error) => {
-          console.error("Error getting user location:", error.message);
-          // Fallback to default location (Kathmandu)
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0,
-        },
-      );
-    } else {
-      console.warn("Geolocation is not supported by this browser.");
+  const handleLocationGranted = (location: [number, number]) => {
+    // Validate location coordinates
+    if (
+      !location ||
+      location.length !== 2 ||
+      isNaN(location[0]) ||
+      isNaN(location[1])
+    ) {
+      console.error("Invalid location coordinates:", location);
+      return;
     }
 
+    setUserLocation(location);
+    setMapCenter(location);
+    setMapZoom(14);
+  };
+
+  const handleLocationDenied = () => {
+    // Keep default location (Kathmandu)
+    console.log("User denied location access, using default location");
+  };
+
+  useEffect(() => {
     const fetchVenuesAndRatings = async () => {
       const venuesCollection = await getDocs(collection(db, "venues"));
       const venuesData = await Promise.all(
@@ -257,36 +259,96 @@ const VenuesPage = () => {
     setSelectedVenue(venue);
     setMapCenter([venue.latitude, venue.longitude]);
     setMapZoom(16);
+    // Auto switch to map view on mobile when venue is selected
+    setMobileView("map");
   };
 
   return (
-    <div className="flex h-[calc(100vh-100px)] w-screen p-5 overflow-hidden">
-      {/* Left Sidebar */}
-      <div className="w-96 border-r bg-background flex flex-col overflow-hidden">
-        <div className="p-4 flex-shrink-0">
-          <VenueFilter
-            className="flex flex-col h-[calc(100vh-4rem)] w-screen overflow-hidden py-10"
-            allVenues={allVenues}
-            setFilteredVenues={setFilteredVenues}
-          />
+    <div className="flex flex-col h-[calc(100vh-100px)] w-screen p-3 md:p-5 overflow-hidden">
+      {/* Location Banner */}
+      {showLocationBanner && (
+        <LocationPermissionBanner
+          onPermissionGranted={handleLocationGranted}
+          onPermissionDenied={handleLocationDenied}
+          onDismiss={() => setShowLocationBanner(false)}
+        />
+      )}
+
+      {/* Mobile View Toggle */}
+      <div className="flex gap-2 mb-3">
+        <div className="md:hidden flex gap-2 flex-1">
+          <Button
+            variant={mobileView === "list" ? "default" : "outline"}
+            onClick={() => setMobileView("list")}
+            className="flex-1"
+            size="sm"
+          >
+            <List className="h-4 w-4 mr-2" />
+            List
+          </Button>
+          <Button
+            variant={mobileView === "map" ? "default" : "outline"}
+            onClick={() => setMobileView("map")}
+            className="flex-1"
+            size="sm"
+          >
+            <Map className="h-4 w-4 mr-2" />
+            Map
+          </Button>
         </div>
-        <div className="flex-1 overflow-hidden px-4 flex flex-col">
-          <VenueResultList
-            venues={filteredVenues}
-            setSelectedVenue={handleSetSelectedVenue}
-          />
-        </div>
+        {!userLocation && (
+          <Button
+            onClick={() => setShowLocationBanner(true)}
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+          >
+            <MapPin className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">Use My Location</span>
+          </Button>
+        )}
       </div>
 
-      {/* Right Map Section - Full Width */}
-      <div className="flex-1 overflow-hidden">
-        <PublicVenueMap
-          venues={filteredVenues}
-          selectedVenue={selectedVenue}
-          userLocation={userLocation}
-          center={mapCenter}
-          zoom={mapZoom}
-        />
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Sidebar - Hidden on mobile when map view is active */}
+        <div
+          className={`
+          ${mobileView === "map" ? "hidden" : "flex"}
+          md:flex
+          w-full md:w-96
+          border-r bg-background flex-col overflow-hidden
+        `}
+        >
+          <div className="p-4 flex-shrink-0">
+            <VenueFilter
+              allVenues={allVenues}
+              setFilteredVenues={setFilteredVenues}
+            />
+          </div>
+          <div className="flex-1 overflow-hidden px-4 flex flex-col">
+            <VenueResultList
+              venues={filteredVenues}
+              setSelectedVenue={handleSetSelectedVenue}
+            />
+          </div>
+        </div>
+
+        {/* Right Map Section - Hidden on mobile when list view is active */}
+        <div
+          className={`
+          ${mobileView === "list" ? "hidden" : "flex"}
+          md:flex
+          flex-1 overflow-hidden
+        `}
+        >
+          <PublicVenueMap
+            venues={filteredVenues}
+            selectedVenue={selectedVenue}
+            userLocation={userLocation}
+            center={mapCenter}
+            zoom={mapZoom}
+          />
+        </div>
       </div>
     </div>
   );

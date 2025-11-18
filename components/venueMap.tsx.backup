@@ -9,7 +9,6 @@ import {
   useMapEvents,
   Tooltip,
   Popup,
-  useMap,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L, { LatLng, DivIcon } from "leaflet";
@@ -34,40 +33,9 @@ import {
 } from "firebase/firestore";
 import AddGround from "./addGround";
 import { useRouter } from "next/navigation";
-import { Search, MapPin, Navigation, Plus, Loader2, Map, List } from "lucide-react";
+import { Search, MapPin, Navigation, Plus, Loader2 } from "lucide-react";
 
 import { LocationPermissionBanner } from "./LocationPermissionBanner";
-// Fix for default Leaflet icon path issues with webpack
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-});
-
-// Map controller to handle flyTo
-const MapController = ({ 
-  mapRef, 
-  userLocation 
-}: { 
-  mapRef: React.MutableRefObject<L.Map | null>;
-  userLocation: [number, number] | null;
-}) => {
-  const map = useMap();
-  
-  useEffect(() => {
-    mapRef.current = map;
-  }, [map, mapRef]);
-
-  useEffect(() => {
-    if (userLocation && map) {
-      map.flyTo(userLocation, 14, { duration: 1.5 });
-    }
-  }, [userLocation, map]);
-
-  return null;
-};
 // Fix for default Leaflet icon path issues with webpack
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -206,21 +174,14 @@ const VenueMap = () => {
     null,
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const [mobileView, setMobileView] = useState<"list" | "map">("list");
   const [searchedLocation, setSearchedLocation] = useState<
     [number, number] | null
   >(null);
   const [selectedVenue, setSelectedVenue] = useState<string | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const [showLocationBanner, setShowLocationBanner] = useState(false);
+  const [showLocationBanner, setShowLocationBanner] = useState(true);
 
   const handleLocationGranted = (location: [number, number]) => {
-    // Validate location coordinates
-    if (!location || location.length !== 2 || isNaN(location[0]) || isNaN(location[1])) {
-      console.error("Invalid location coordinates:", location);
-      return;
-    }
-    
     setUserLocation(location);
     if (mapRef.current) {
       mapRef.current.flyTo(location, 14, { duration: 1.5 });
@@ -319,8 +280,36 @@ const VenueMap = () => {
       const venues = await fetchAllVenues();
       await fetchManagedVenues();
 
-      // Location will be handled by LocationPermissionBanner
-      updateDisplayedVenues(venues, "", null);
+      // Get user's current location with high accuracy
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            console.log("User's location:", latitude, longitude);
+            const loc: [number, number] = [latitude, longitude];
+            setUserLocation(loc);
+            updateDisplayedVenues(venues, "", loc);
+            // Auto-center map on user's real location
+            if (mapRef.current) {
+              mapRef.current.flyTo(loc, 14, {
+                duration: 1.5,
+              });
+            }
+          },
+          (error) => {
+            console.error("Error getting location:", error);
+            updateDisplayedVenues(venues, "", null);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0,
+          },
+        );
+      } else {
+        console.warn("Geolocation is not supported by this browser.");
+        updateDisplayedVenues(venues, "", null);
+      }
     };
 
     initializeData();
@@ -384,45 +373,9 @@ const VenueMap = () => {
         fetchGrounds={refreshAllData}
       />
 
-      {/* Location Permission Banner */}
-      {showLocationBanner && (
-        <LocationPermissionBanner
-          onPermissionGranted={handleLocationGranted}
-          onPermissionDenied={handleLocationDenied}
-          onDismiss={() => setShowLocationBanner(false)}
-        />
-      )}
-
-      {/* Mobile View Toggle */}
-      <div className="md:hidden flex gap-2 mb-3">
-        <Button
-          variant={mobileView === "list" ? "default" : "outline"}
-          onClick={() => setMobileView("list")}
-          className="flex-1"
-          size="sm"
-        >
-          <List className="h-4 w-4 mr-2" />
-          Venues
-        </Button>
-        <Button
-          variant={mobileView === "map" ? "default" : "outline"}
-          onClick={() => setMobileView("map")}
-          className="flex-1"
-          size="sm"
-        >
-          <Map className="h-4 w-4 mr-2" />
-          Map
-        </Button>
-      </div>
-
       <div className="flex flex-1 gap-4 overflow-hidden">
         {/* Left Sidebar */}
-        <div className={`
-          ${mobileView === "map" ? "hidden" : "flex"}
-          md:flex
-          w-full md:w-96 lg:w-[400px]
-          flex-col border-r bg-background overflow-hidden
-        `}>
+        <div className="w-full md:w-96 lg:w-[400px] flex flex-col border-r bg-background overflow-hidden">
           {/* Search Section */}
           <div className="p-4 border-b space-y-3 flex-shrink-0">
             <div className="flex items-center gap-2">
@@ -437,16 +390,6 @@ const VenueMap = () => {
                   className="pl-9"
                 />
               </div>
-              {!userLocation && (
-                <Button 
-                  onClick={() => setShowLocationBanner(true)} 
-                  size="icon" 
-                  variant="outline"
-                  title="Use my location"
-                >
-                  <MapPin className="h-4 w-4" />
-                </Button>
-              )}
               <Button onClick={handleSearch} size="icon" variant="secondary">
                 <Navigation className="h-4 w-4" />
               </Button>
@@ -619,18 +562,20 @@ const VenueMap = () => {
         </div>
 
         {/* Right Map Section */}
-        <div className={`
-          ${mobileView === "list" ? "hidden" : "flex"}
-          md:flex
-          flex-1 relative overflow-hidden
-        `}>
+        <div className="flex-1  relative overflow-hidden">
           <div className="absolute inset-0 rounded-lg overflow-hidden border">
             <MapContainer
               center={[27.7172, 85.324]}
               zoom={12}
               style={{ width: "100%", height: "100%" }}
+              whenReady={(e) => {
+                mapRef.current = e.target;
+                // If user location is already available, center on it
+                if (userLocation) {
+                  e.target.flyTo(userLocation, 14, { duration: 1 });
+                }
+              }}
             >
-              <MapController mapRef={mapRef} userLocation={userLocation} />
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

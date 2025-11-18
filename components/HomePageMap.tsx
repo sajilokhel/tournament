@@ -24,6 +24,21 @@ const HomePageMap = () => {
   );
   const mapRef = useRef<L.Map | null>(null);
 
+  const handleLocationGranted = (location: [number, number]) => {
+    // Validate location coordinates
+    if (!location || location.length !== 2 || isNaN(location[0]) || isNaN(location[1])) {
+      console.error("Invalid location coordinates:", location);
+      return;
+    }
+    
+    setUserLocation(location);
+    mapRef.current?.flyTo(location, 13);
+  };
+
+  const handleLocationDenied = () => {
+    console.log("User denied location access for homepage map");
+  };
+
   useEffect(() => {
     const fetchGrounds = async () => {
       const q = query(
@@ -37,13 +52,6 @@ const HomePageMap = () => {
     };
 
     fetchGrounds();
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        const { latitude, longitude } = position.coords;
-        setUserLocation([latitude, longitude]);
-        mapRef.current?.flyTo([latitude, longitude], 13);
-      });
-    }
   }, []);
 
   const handleMarkerClick = (groundId: string) => {
