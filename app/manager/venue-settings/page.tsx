@@ -11,10 +11,12 @@ import {
   doc,
   getDoc,
 } from "firebase/firestore";
-import { Loader2, MapPin, DollarSign, ChevronRight } from "lucide-react";
+import { Loader2, MapPin, DollarSign, ChevronRight, Plus } from "lucide-react";
 import { NoVenueAccess } from "@/components/manager/NoVenueAccess";
 import ManagerPanel from "@/components/ManagerPanel";
+import AddGround from "@/components/addGround";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -28,6 +30,7 @@ const MyVenuesPage = () => {
   const [selectedVenue, setSelectedVenue] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasVenueAccess, setHasVenueAccess] = useState<boolean | null>(null);
+  const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
 
   const fetchVenues = useCallback(async () => {
     if (!user) return;
@@ -97,12 +100,41 @@ const MyVenuesPage = () => {
   if (!selectedVenue) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Venues</h1>
-          <p className="text-gray-600 mt-1">Select a venue to manage its details, images, location, and availability.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">My Venues</h1>
+            <p className="text-gray-600 mt-1">Select a venue to manage its details, images, location, and availability.</p>
+          </div>
+          <Button 
+            onClick={() => setIsAddVenueOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Create New Venue
+          </Button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {venues.length === 0 ? (
+          <Card className="p-12 text-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center">
+                <MapPin className="h-10 w-10 text-gray-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">No venues yet</h3>
+                <p className="text-gray-600 mt-1">Get started by creating your first venue</p>
+              </div>
+              <Button 
+                onClick={() => setIsAddVenueOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Create New Venue
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {venues.map((venue) => (
             <Card
               key={venue.id}
@@ -137,6 +169,13 @@ const MyVenuesPage = () => {
             </Card>
           ))}
         </div>
+        )}
+
+        <AddGround
+          isFormOpen={isAddVenueOpen}
+          setIsFormOpen={setIsAddVenueOpen}
+          fetchGrounds={fetchVenues}
+        />
       </div>
     );
   }
