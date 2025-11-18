@@ -1,72 +1,61 @@
+/**
+ * Cron API Route - Maintenance tasks
+ * 
+ * In the new architecture, slots are generated on-demand, so this
+ * cron job now only handles cleanup tasks:
+ * - Clean expired holds
+ * - (Future: Clean old booking records, etc.)
+ * 
+ * Can be triggered by Vercel Cron or external scheduler.
+ */
 
 import { NextRequest, NextResponse } from "next/server";
-import { collection, getDocs, query, where, addDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase"; // Assuming db is exported from your firebase config
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { cleanExpiredHolds } from "@/lib/slotService";
 
 export async function GET(req: NextRequest) {
   try {
-    const managersSnapshot = await getDocs(collection(db, "managers"));
+    console.log("🔄 Starting cron job: Maintenance tasks");
+    
+    const stats = {
+      venuesProcessed: 0,
+      holdsRemoved: 0,
+      errors: 0,
+    };
 
-    for (const managerDoc of managersSnapshot.docs) {
-      const managerId = managerDoc.id;
-      const schedulesSnapshot = await getDocs(
-        collection(db, "managers", managerId, "schedules")
-      );
-      const groundId = managerDoc.data().groundId; // Assuming manager has a groundId
+    // Get all venue IDs from venueSlots collection
+    const venueSlotsSnapshot = await getDocs(collection(db, "venueSlots"));
 
-      if (schedulesSnapshot.empty) {
-        continue;
-      }
+    for (const venueDoc of venueSlotsSnapshot.docs) {
+      const venueId = venueDoc.id;
+      stats.venuesProcessed++;
 
-      for (let i = 0; i < 7; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() + i);
-        const dayOfWeek = date.getDay(); // Sunday = 0, Monday = 1, etc.
-
-        for (const scheduleDoc of schedulesSnapshot.docs) {
-          const schedule = scheduleDoc.data();
-          if (schedule.weekday === dayOfWeek) {
-            for (
-              let hour = schedule.startHour;
-              hour < schedule.endHour;
-              hour++
-            ) {
-              const slotDate = date.toISOString().split("T")[0]; // YYYY-MM-DD
-              const startTime = `${hour}:00`;
-              const endTime = `${hour + 1}:00`;
-
-              // Check for duplicate slots
-              const slotsQuery = query(
-                collection(db, "slots"),
-                where("groundId", "==", groundId),
-                where("date", "==", slotDate),
-                where("startTime", "==", startTime)
-              );
-
-              const existingSlots = await getDocs(slotsQuery);
-
-              if (existingSlots.empty) {
-                await addDoc(collection(db, "slots"), {
-                  groundId: groundId,
-                  date: slotDate,
-                  startTime: startTime,
-                  endTime: endTime,
-                  status: "AVAILABLE", // Default status
-                  createdAt: new Date(),
-                });
-              }
-            }
-          }
+      try {
+        const removed = await cleanExpiredHolds(venueId);
+        stats.holdsRemoved += removed;
+        
+        if (removed > 0) {
+          console.log(`  ✅ Cleaned ${removed} expired holds from venue ${venueId}`);
         }
+      } catch (error) {
+        console.error(`  ❌ Error cleaning holds for venue ${venueId}:`, error);
+        stats.errors++;
       }
     }
 
+    console.log("✅ Cron job completed:", stats);
+
     return NextResponse.json({
-      message: "Slot generation completed successfully.",
+      success: true,
+      message: "Maintenance tasks completed successfully",
+      stats,
     });
   } catch (error) {
-    console.error("Error generating slots:", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
+    console.error("❌ Cron job error:", error);
+    return NextResponse.json(
+      { success: false, error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }
-
