@@ -114,15 +114,15 @@ const VenueGallery = ({ imageUrls, venueName }: VenueGalleryProps) => {
 
       {/* Zoom Dialog */}
       <Dialog open={isZoomOpen} onOpenChange={setIsZoomOpen}>
-        <DialogContent className="!max-w-[95vw] !w-[95vw] !h-[95vh] p-0 bg-black/95 border-0 [&>button]:bg-white [&>button]:hover:bg-gray-100">
+        <DialogContent className="!max-w-[95vw] !w-auto !h-auto max-h-[95vh] p-0 bg-black/95 border-0 [&>button]:bg-white [&>button]:hover:bg-gray-100 overflow-hidden">
           <VisuallyHidden>
             <DialogTitle>Image Gallery - {venueName}</DialogTitle>
           </VisuallyHidden>
-          <div className="relative w-full h-full">
+          <div className="relative w-full h-full max-h-[95vh] flex items-center justify-center p-4">
             <img
               src={selectedImage}
               alt={`${venueName} - Full size`}
-              className="w-full h-full object-contain"
+              className="max-w-full max-h-[90vh] w-auto h-auto object-contain"
             />
             {imageUrls.length > 1 && (
               <>
