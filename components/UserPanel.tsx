@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Calendar, Clock, Shield, Users } from "lucide-react";
+import { Calendar, Clock, Shield, Users, Trophy, Star } from "lucide-react";
 import UserGuard from "@/components/UserGuard";
 import VenueGallery from "@/components/VenueGallery";
 import VenueHeader from "@/components/VenueHeader";
@@ -124,7 +124,7 @@ const UserPanel = ({ venue }: UserPanelProps) => {
           </div>
 
           {/* Right: Header, Booking, Quick Info */}
-          <div className="space-y-6">
+          <div className="space-y-8">
             <VenueHeader
               venueId={id as string}
               name={venue.name}
@@ -132,45 +132,77 @@ const UserPanel = ({ venue }: UserPanelProps) => {
               address={venue.address}
             />
 
-            {/* Booking Section */}
-            <Card className="shadow-lg border-2 border-blue-100 pt-0 overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                <CardTitle className="text-xl flex items-center gap-2 py-4">
-                  <Calendar className="w-5 h-5 text-blue-600" />
-                  Book Your Slot
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
+            {/* Booking Section - Enhanced */}
+            <Card className="shadow-xl border-0 ring-1 ring-gray-200 overflow-hidden bg-white">
+              <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 border-b">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Trophy className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Ready to Play?</h3>
+                    <p className="text-sm text-muted-foreground">Secure your spot on the field now.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <CardContent className="p-6 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <div className="text-sm text-muted-foreground mb-1">Price</div>
+                    <div className="font-semibold text-lg">Rs. {venue.pricePerHour}<span className="text-sm font-normal text-muted-foreground">/hr</span></div>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <div className="text-sm text-muted-foreground mb-1">Status</div>
+                    <div className="font-semibold text-lg text-green-600 flex items-center gap-1">
+                      <span className="relative flex h-2.5 w-2.5 mr-1">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                      </span>
+                      Open
+                    </div>
+                  </div>
+                </div>
+
                 <Dialog open={isSlotDialogOpen} onOpenChange={setIsSlotDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button className="w-full" size="lg">
-                      <Clock className="w-4 h-4 mr-2" />
-                      View All Available Slots
+                    <Button className="w-full h-14 text-lg font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all" size="lg">
+                      <Calendar className="w-5 h-5 mr-2" />
+                      Check Available Slots
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[95vh] overflow-y-auto">
+                  <DialogContent className="max-w-[95vw] sm:max-w-5xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle className="text-2xl">Available Time Slots</DialogTitle>
+                      <DialogTitle className="text-2xl font-bold">Select a Time Slot</DialogTitle>
                     </DialogHeader>
-                    <WeeklySlotsGrid groundId={id as string} />
+                    <div className="mt-4">
+                      <WeeklySlotsGrid groundId={id as string} />
+                    </div>
                   </DialogContent>
                 </Dialog>
+
+                <p className="text-xs text-center text-muted-foreground">
+                  Instant confirmation • Secure payment via eSewa
+                </p>
               </CardContent>
             </Card>
 
             {/* Trust Badges */}
             <div className="grid grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <Shield className="w-6 h-6 mx-auto mb-2 text-green-600" />
-                <p className="text-xs font-semibold text-gray-700">Verified Venue</p>
+              <div className="flex flex-col items-center text-center p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <Shield className="w-8 h-8 mb-3 text-green-500" />
+                <p className="font-semibold text-sm text-gray-900">Verified</p>
+                <p className="text-xs text-muted-foreground mt-1">Official Venue</p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <Clock className="w-6 h-6 mx-auto mb-2 text-blue-600" />
-                <p className="text-xs font-semibold text-gray-700">Instant Booking</p>
+              <div className="flex flex-col items-center text-center p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <Clock className="w-8 h-8 mb-3 text-blue-500" />
+                <p className="font-semibold text-sm text-gray-900">Instant</p>
+                <p className="text-xs text-muted-foreground mt-1">Real-time Booking</p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <Users className="w-6 h-6 mx-auto mb-2 text-purple-600" />
-                <p className="text-xs font-semibold text-gray-700">Popular Choice</p>
+              <div className="flex flex-col items-center text-center p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <Star className="w-8 h-8 mb-3 text-yellow-500" />
+                <p className="font-semibold text-sm text-gray-900">Top Rated</p>
+                <p className="text-xs text-muted-foreground mt-1">Community Favorite</p>
               </div>
             </div>
           </div>
