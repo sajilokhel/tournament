@@ -32,9 +32,9 @@ import {
   orderBy,
   limit,
 } from "firebase/firestore";
-import AddGround from "./addGround";
+
 import { useRouter } from "next/navigation";
-import { Search, MapPin, Navigation, Plus, Loader2, Map, List } from "lucide-react";
+import { Search, MapPin, Navigation, Loader2, Map, List } from "lucide-react";
 
 import { LocationPermissionBanner } from "./LocationPermissionBanner";
 // Fix for default Leaflet icon path issues with webpack
@@ -153,18 +153,7 @@ const createVenueIcon = (isSelected: boolean) => {
   });
 };
 
-const AddGroundMarker = ({
-  onLocationSelect,
-}: {
-  onLocationSelect: (location: LatLng) => void;
-}) => {
-  useMapEvents({
-    click(e) {
-      onLocationSelect(e.latlng);
-    },
-  });
-  return null;
-};
+
 
 // Helper function to calculate distance between two coordinates
 const calculateDistance = (
@@ -195,12 +184,7 @@ const VenueMap = () => {
   const [displayedVenues, setDisplayedVenues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [isAddingMode, setIsAddingMode] = useState(false);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [tempLocation, setTempLocation] = useState<LatLng | null>(null);
-  const [newGroundLocation, setNewGroundLocation] = useState<LatLng | null>(
-    null,
-  );
+
 
   const [userLocation, setUserLocation] = useState<[number, number] | null>(
     null,
@@ -352,15 +336,7 @@ const VenueMap = () => {
     }
   };
 
-  const handleLocationSelect = (location: LatLng) => setTempLocation(location);
 
-  const confirmLocation = () => {
-    if (tempLocation) {
-      setNewGroundLocation(tempLocation);
-      setIsAddingMode(false);
-      setIsFormOpen(true);
-    }
-  };
 
   const handleMarkerClick = (groundId: string) => {
     setSelectedVenue(groundId);
@@ -381,12 +357,7 @@ const VenueMap = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] w-screen overflow-hidden py-10 px-5">
-      <AddGround
-        newGroundLocation={newGroundLocation}
-        isFormOpen={isFormOpen}
-        setIsFormOpen={setIsFormOpen}
-        fetchGrounds={refreshAllData}
-      />
+
 
       {/* Location Permission Banner */}
       {showLocationBanner && (
@@ -456,47 +427,7 @@ const VenueMap = () => {
               </Button>
             </div>
 
-            {role === "manager" && (
-              <div className="flex gap-2">
-                {!isAddingMode ? (
-                  <Button
-                    onClick={() => setIsAddingMode(true)}
-                    className="w-full"
-                    variant="default"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add New Ground
-                  </Button>
-                ) : (
-                  <div className="flex gap-2 w-full">
-                    <Button
-                      onClick={confirmLocation}
-                      disabled={!tempLocation}
-                      className="flex-1"
-                    >
-                      Confirm Location
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setIsAddingMode(false);
-                        setTempLocation(null);
-                      }}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
 
-            {isAddingMode && (
-              <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950 p-3 rounded-md border border-blue-200 dark:border-blue-800">
-                <MapPin className="h-4 w-4 inline mr-2" />
-                Click on the map to select a location for your new ground
-              </div>
-            )}
           </div>
 
           {/* Results Section */}
@@ -656,18 +587,7 @@ const VenueMap = () => {
                 </Marker>
               )}
 
-              {isAddingMode && (
-                <AddGroundMarker onLocationSelect={handleLocationSelect} />
-              )}
-              {tempLocation && (
-                <Marker position={tempLocation}>
-                  <Tooltip permanent>
-                    <div className="text-center">
-                      <strong>New Ground Location</strong>
-                    </div>
-                  </Tooltip>
-                </Marker>
-              )}
+
 
               {allVenues.map((ground) => (
                 <Marker
