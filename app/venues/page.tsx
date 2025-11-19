@@ -26,10 +26,6 @@ const VenueFilter = ({ setFilteredVenues, allVenues }) => {
   const [minRating, setMinRating] = useState(0);
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
-  const [amenities, setAmenities] = useState({
-    parking: false,
-    covered: false,
-  });
 
   useEffect(() => {
     let filtered = allVenues;
@@ -58,16 +54,8 @@ const VenueFilter = ({ setFilteredVenues, allVenues }) => {
       }
     }
 
-    if (amenities.parking) {
-      filtered = filtered.filter((venue) => venue.amenities?.parking);
-    }
-
-    if (amenities.covered) {
-      filtered = filtered.filter((venue) => venue.amenities?.covered);
-    }
-
     setFilteredVenues(filtered);
-  }, [searchTerm, minRating, minPrice, maxPrice, amenities, allVenues, setFilteredVenues]);
+  }, [searchTerm, minRating, minPrice, maxPrice, allVenues, setFilteredVenues]);
 
   return (
     <div className="p-4 border rounded-lg space-y-4 bg-background">
@@ -139,33 +127,6 @@ const VenueFilter = ({ setFilteredVenues, allVenues }) => {
             Clear Price Filter
           </Button>
         )}
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-2">Amenities:</label>
-        <div className="flex flex-col space-y-2">
-          <label className="flex items-center gap-2 font-normal cursor-pointer">
-            <input
-              type="checkbox"
-              checked={amenities.parking}
-              onChange={(e) =>
-                setAmenities({ ...amenities, parking: e.target.checked })
-              }
-              className="cursor-pointer"
-            />
-            Parking
-          </label>
-          <label className="flex items-center gap-2 font-normal cursor-pointer">
-            <input
-              type="checkbox"
-              checked={amenities.covered}
-              onChange={(e) =>
-                setAmenities({ ...amenities, covered: e.target.checked })
-              }
-              className="cursor-pointer"
-            />
-            Covered Roof
-          </label>
-        </div>
       </div>
     </div>
   );
