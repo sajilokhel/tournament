@@ -43,7 +43,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Loader2, Store, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Store } from "lucide-react";
 import { BookingSummary } from "@/components/BookingSummary";
 import { cn } from "@/lib/utils";
 
@@ -63,9 +63,11 @@ const WeeklySlotsGrid: React.FC<WeeklySlotsGridProps> = ({ groundId }) => {
   
   const [slots, setSlots] = useState<ReconstructedSlot[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(
-    getWeekStart(new Date())
-  );
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
   const [venueDetails, setVenueDetails] = useState<any>(null);
   
   // Dialog states
@@ -90,13 +92,6 @@ const WeeklySlotsGrid: React.FC<WeeklySlotsGridProps> = ({ groundId }) => {
   // Helper Functions
   // ============================================================================
 
-  function getWeekStart(date: Date): Date {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day;
-    return new Date(d.setDate(diff));
-  }
-
   function getWeekEnd(weekStart: Date): Date {
     const end = new Date(weekStart);
     end.setDate(end.getDate() + 6);
@@ -104,7 +99,10 @@ const WeeklySlotsGrid: React.FC<WeeklySlotsGridProps> = ({ groundId }) => {
   }
 
   function formatDate(date: Date): string {
-    return date.toISOString().split("T")[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   function getDayLabel(date: Date): string {
@@ -168,21 +166,7 @@ const WeeklySlotsGrid: React.FC<WeeklySlotsGridProps> = ({ groundId }) => {
     loadSlots();
   }, [loadSlots]);
 
-  // ============================================================================
-  // Week Navigation
-  // ============================================================================
 
-  const handlePreviousWeek = () => {
-    const newWeekStart = new Date(currentWeekStart);
-    newWeekStart.setDate(newWeekStart.getDate() - 7);
-    setCurrentWeekStart(newWeekStart);
-  };
-
-  const handleNextWeek = () => {
-    const newWeekStart = new Date(currentWeekStart);
-    newWeekStart.setDate(newWeekStart.getDate() + 7);
-    setCurrentWeekStart(newWeekStart);
-  };
 
   // ============================================================================
   // Slot Interaction Handlers
@@ -568,12 +552,7 @@ const WeeklySlotsGrid: React.FC<WeeklySlotsGridProps> = ({ groundId }) => {
   return (
     <div className="space-y-6">
       {/* Week Navigation */}
-      <div className="flex items-center justify-between bg-muted/30 p-2 rounded-lg">
-        <Button onClick={handlePreviousWeek} variant="ghost" size="sm">
-          <ChevronLeft className="w-4 h-4 mr-2" />
-          Previous
-        </Button>
-        
+      <div className="flex items-center justify-center bg-muted/30 p-2 rounded-lg">
         <div className="text-center">
           <div className="font-semibold">
             {currentWeekStart.toLocaleDateString("en-US", {
@@ -588,11 +567,6 @@ const WeeklySlotsGrid: React.FC<WeeklySlotsGridProps> = ({ groundId }) => {
             })}
           </div>
         </div>
-        
-        <Button onClick={handleNextWeek} variant="ghost" size="sm">
-          Next
-          <ChevronRight className="w-4 h-4 ml-2" />
-        </Button>
       </div>
 
       {/* Legend */}

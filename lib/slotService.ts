@@ -238,7 +238,11 @@ export async function reconstructSlots(
       
       // Check if this day is enabled
       if (config.daysOfWeek.includes(dayOfWeek)) {
-        const dateString = currentDate.toISOString().split("T")[0];
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const dateString = `${year}-${month}-${day}`;
+        
         const timeSlots = generateTimeSlots(
           config.startTime,
           config.endTime,
@@ -354,10 +358,11 @@ export async function blockSlot(
     const blockedSlot: BlockedSlot = {
       date,
       startTime,
-      reason,
-      blockedBy,
       blockedAt: Timestamp.now(),
     };
+
+    if (reason) blockedSlot.reason = reason;
+    if (blockedBy) blockedSlot.blockedBy = blockedBy;
     
     await updateDoc(docRef, {
       blocked: arrayUnion(blockedSlot),
