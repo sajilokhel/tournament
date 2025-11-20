@@ -338,14 +338,50 @@ const VenuesPage = () => {
     }
 
     setUserLocation(location);
-    setMapCenter(location);
-    setMapZoom(14);
+    // Only center on user location if no venue is selected
+    if (!selectedVenue) {
+      setMapCenter(location);
+      setMapZoom(14);
+    }
   };
 
   const handleLocationDenied = () => {
     // Keep default location (Kathmandu)
     console.log("User denied location access, using default location");
   };
+
+  useEffect(() => {
+    // Check if geolocation is supported
+    if (!navigator.geolocation) return;
+
+    // Check permission status
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: "geolocation" }).then((result) => {
+        if (result.state === "granted") {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              handleLocationGranted([
+                position.coords.latitude,
+                position.coords.longitude,
+              ]);
+            },
+            (error) => {
+              console.error("Error getting location", error);
+            }
+          );
+        } else if (result.state === "prompt") {
+          setShowLocationBanner(true);
+        }
+        // If denied, we don't show banner automatically to avoid annoyance
+      });
+    } else {
+      // Fallback: just try to get position, if it fails/prompts, the browser handles it
+      // But we want to show our nice banner if possible.
+      // Since we can't know if it's prompt or denied without trying, 
+      // and trying triggers the browser prompt, let's show our banner.
+      setShowLocationBanner(true);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchVenuesAndRatings = async () => {

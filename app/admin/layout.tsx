@@ -16,7 +16,7 @@ import {
   SidebarMenuButton,
   SidebarInset,
 } from "@/components/ui/sidebar";
-import { Home, Calendar, MapPin, Users, Settings, LogOut } from "lucide-react";
+import { Home, Calendar, MapPin, Users, Settings, LogOut, Database, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -38,8 +38,10 @@ import { Logo } from "@/components/Logo";
 const NAV_ITEMS = [
   { label: "Overview", href: "/admin/overview", icon: Home },
   { label: "Bookings", href: "/admin/bookings", icon: Calendar },
+  { label: "Payments", href: "/admin/payments", icon: CreditCard },
   { label: "Venues", href: "/admin/venues", icon: MapPin },
   { label: "Users", href: "/admin/users", icon: Users },
+  { label: "Advanced", href: "/admin/advanced", icon: Database },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
@@ -139,7 +141,7 @@ export default function AdminLayout({
             </div>
 
             {/* Content */}
-            <div className="px-4 py-6 w-full">
+            <div className="px-4 py-4 w-full">
               <div className="bg-transparent">{children}</div>
             </div>
           </main>

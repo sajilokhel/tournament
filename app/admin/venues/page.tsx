@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
+import { MapPin, Plus, Search, Trash2, Edit } from "lucide-react";
 import {
   collection,
   getDocs,
@@ -160,24 +161,34 @@ export default function AdminVenuesPage(): JSX.Element {
   };
 
   return (
-    <div className="pt-24 pb-8 px-6">
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Venues</h1>
+        <p className="text-muted-foreground">Manage venues used in the system</p>
+      </div>
+
+      {/* Summary Stats */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Venues</CardTitle>
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{venues.length}</div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
-        <CardHeader>
-          <CardTitle>Venues</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Venues List</CardTitle>
+          <Button variant="outline" size="sm" onClick={fetchVenues}>
+            Refresh
+          </Button>
         </CardHeader>
 
         <CardContent>
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-sm text-muted-foreground">
-              Manage venues used in the system
-            </div>
-            <div>
-              <Button size="sm" variant="ghost" onClick={fetchVenues}>
-                Refresh
-              </Button>
-            </div>
-          </div>
-
           <form
             onSubmit={handleCreate}
             className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4"

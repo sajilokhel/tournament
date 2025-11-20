@@ -119,41 +119,6 @@ const VenueHeader = ({
           </Badge>
         </div>
       </div>
-
-      {/* Rating Breakdown (Collapsible) */}
-      {averageRating !== null && reviewCount > 0 && (
-        <details className="group">
-          <summary className="cursor-pointer text-sm font-semibold text-gray-700 hover:text-gray-900 flex items-center justify-between">
-            <span>Rating Breakdown</span>
-            <svg
-              className="w-4 h-4 transition-transform group-open:rotate-180"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </summary>
-          <div className="mt-3 space-y-2">
-            {[5, 4, 3, 2, 1].map((star) => (
-              <div key={star} className="flex items-center gap-3">
-                <span className="text-sm text-gray-600 w-6">{star}★</span>
-                <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
-                  <div
-                    className="bg-yellow-400 h-full rounded-full transition-all"
-                    style={{
-                      width: `${reviewCount > 0 ? (ratingBreakdown[star] / reviewCount) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-                <span className="text-sm text-gray-600 w-8 text-right">
-                  {ratingBreakdown[star]}
-                </span>
-              </div>
-            ))}
-          </div>
-        </details>
-      )}
     </div>
   );
 };

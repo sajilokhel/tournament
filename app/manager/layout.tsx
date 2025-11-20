@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Calendar, Settings, Menu, Home, LogOut, User } from "lucide-react";
+import { LayoutDashboard, Calendar, Settings, Menu, Home, LogOut, User, CreditCard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -64,6 +64,11 @@ const ManagerLayout = ({ children }: ManagerLayoutProps) => {
       href: "/manager/bookings",
       label: "Bookings",
       icon: Calendar,
+    },
+    {
+      href: "/manager/payments",
+      label: "Payments",
+      icon: CreditCard,
     },
     {
       href: "/manager/venue-settings",

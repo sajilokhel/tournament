@@ -228,7 +228,7 @@ const PaymentPage = () => {
   const seconds = timeLeft !== null ? timeLeft % 60 : 0;
 
   return (
-    <div className="container mx-auto p-4 max-w-2xl">
+    <div className="container mx-auto p-4 max-w-2xl pt-24">
       <Card>
         <CardHeader>
           <CardTitle>Confirm Your Booking</CardTitle>

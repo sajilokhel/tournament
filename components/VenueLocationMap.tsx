@@ -15,11 +15,62 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
 });
 
+// Custom user location marker with ripple effect
+const createUserLocationIcon = () => {
+  return L.divIcon({
+    className: "custom-user-location-marker",
+    html: `
+      <div style="position: relative; width: 40px; height: 40px;">
+        <div style="
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 16px;
+          height: 16px;
+          background: #3b82f6;
+          border: 3px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          z-index: 2;
+        "></div>
+        <div style="
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 40px;
+          height: 40px;
+          background: rgba(59, 130, 246, 0.3);
+          border-radius: 50%;
+          animation: ripple 2s infinite;
+          z-index: 1;
+        "></div>
+        <style>
+          @keyframes ripple {
+            0% {
+              transform: translate(-50%, -50%) scale(0.5);
+              opacity: 1;
+            }
+            100% {
+              transform: translate(-50%, -50%) scale(1.5);
+              opacity: 0;
+            }
+          }
+        </style>
+      </div>
+    `,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+  });
+};
+
 interface VenueLocationMapProps {
   latitude: number;
   longitude: number;
   venueName: string;
   address?: string;
+  userLocation?: [number, number] | null;
 }
 
 const VenueLocationMap = ({
@@ -27,6 +78,7 @@ const VenueLocationMap = ({
   longitude,
   venueName,
   address,
+  userLocation,
 }: VenueLocationMapProps) => {
   if (!latitude || !longitude) {
     return (
@@ -67,6 +119,13 @@ const VenueLocationMap = ({
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             />
+            {userLocation && (
+              <Marker position={userLocation} icon={createUserLocationIcon()}>
+                <Popup>
+                  <div className="text-center font-semibold">📍 Your Location</div>
+                </Popup>
+              </Marker>
+            )}
             <Marker position={[latitude, longitude]}>
               <Popup>
                 <div className="text-center">

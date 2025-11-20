@@ -288,15 +288,19 @@ const UserBookingsPage = () => {
   const handleCancelBooking = async (booking: any) => {
     setCancellingId(booking.id);
     try {
-      // Update booking status
-      const bookingRef = doc(db, "bookings", booking.id);
-      await updateDoc(bookingRef, {
-        status: "cancelled",
-        cancelledAt: serverTimestamp(),
+      const response = await fetch(`/api/bookings/${booking.id}/cancel`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: user?.uid }),
       });
 
-      // Remove from venueSlots bookings array
-      await unbookSlot(booking.venueId, booking.date, booking.startTime);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to cancel booking");
+      }
 
       // Update local state
       setBookings(
@@ -306,12 +310,21 @@ const UserBookingsPage = () => {
       );
 
       toast.success("Booking cancelled successfully.");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error cancelling booking:", error);
-      toast.error("Failed to cancel booking. Please try again.");
+      toast.error(error.message || "Failed to cancel booking. Please try again.");
     } finally {
       setCancellingId(null);
     }
+  };
+
+  const canCancel = (booking: any) => {
+    if (!booking.date || !booking.startTime) return false;
+    const now = new Date();
+    const bookingDateTime = new Date(`${booking.date}T${booking.startTime}`);
+    const diffMs = bookingDateTime.getTime() - now.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+    return diffHours >= 5;
   };
 
   const handleDownloadInvoice = async (booking: any) => {
@@ -634,7 +647,8 @@ const UserBookingsPage = () => {
                     variant="destructive"
                     size="sm"
                     className="flex-1"
-                    disabled={cancellingId === booking.id}
+                    disabled={cancellingId === booking.id || !canCancel(booking)}
+                    title={!canCancel(booking) ? "Cannot cancel within 5 hours of start time" : "Cancel booking"}
                   >
                     {cancellingId === booking.id ? (
                       <>

@@ -12,10 +12,11 @@ import { ESEWA_VERIFY_URL, ESEWA_SECRET_KEY } from '@/lib/esewa/config';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { bookSlot } from '@/lib/slotService';
+import { logPayment } from '@/lib/paymentLogger';
 
 interface EsewaVerificationResponse {
   product_code: string;
-  total_amount: string;
+  total_amount: string | number;
   transaction_uuid: string;
   status: 'COMPLETE' | 'PENDING' | 'FAILED' | 'INITIATED';
   ref_id: string;
@@ -106,12 +107,18 @@ export async function POST(request: NextRequest) {
     console.log('💾 Updating booking in database...');
     
     try {
+      // Extract bookingId from transactionUuid (format: bookingId_timestamp)
+      // If no underscore, assume it's just the bookingId (backward compatibility)
+      const bookingId = transactionUuid.includes('_') 
+        ? transactionUuid.substring(0, transactionUuid.lastIndexOf('_')) 
+        : transactionUuid;
+
       // Get booking details
-      const bookingRef = doc(db, 'bookings', transactionUuid);
+      const bookingRef = doc(db, 'bookings', bookingId);
       const bookingSnap = await getDoc(bookingRef);
 
       if (!bookingSnap.exists()) {
-        console.error('❌ Booking not found:', transactionUuid);
+        console.error('❌ Booking not found:', bookingId);
         return NextResponse.json({
           verified: true,
           status: verificationData.status,
@@ -142,7 +149,7 @@ export async function POST(request: NextRequest) {
       // Convert hold to confirmed booking in venueSlots
       console.log('🔄 Converting hold to confirmed booking...');
       await bookSlot(booking.venueId, booking.date, booking.startTime, {
-        bookingId: transactionUuid,
+        bookingId: bookingId,
         bookingType: 'website',
         status: 'confirmed',
         userId: booking.userId,
@@ -158,6 +165,24 @@ export async function POST(request: NextRequest) {
         esewaStatus: verificationData.status,
         esewaAmount: verificationData.total_amount,
         verifiedAt: serverTimestamp(),
+      });
+
+      // Log payment to history
+      await logPayment({
+        transactionUuid: verificationData.transaction_uuid,
+        bookingId: bookingId,
+        userId: booking.userId,
+        venueId: booking.venueId,
+        amount: parseFloat(String(verificationData.total_amount).replace(/,/g, '')),
+        status: 'success',
+        method: 'esewa',
+        productCode: verificationData.product_code,
+        refId: verificationData.ref_id,
+        metadata: {
+            esewaStatus: verificationData.status,
+            bookingDate: booking.date,
+            bookingTime: booking.startTime
+        }
       });
 
       console.log('🎉 Payment verification and booking confirmation complete!');

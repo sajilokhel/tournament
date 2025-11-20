@@ -124,7 +124,9 @@ export async function initiateEsewaPayment(
       productDeliveryCharge
     );
 
-    const transactionUuid = bookingId;
+    // Generate a unique transaction UUID to avoid "Duplicate transaction UUID" errors on retry
+    // Format: bookingId_timestamp
+    const transactionUuid = `${bookingId}_${Date.now()}`;
     const productCode = ESEWA_MERCHANT_CODE;
 
     // Generate signature from server

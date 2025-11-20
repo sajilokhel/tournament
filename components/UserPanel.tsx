@@ -18,6 +18,7 @@ import VenueDetails from "@/components/VenueDetails";
 import ReviewsSection from "@/components/ReviewsSection";
 import WeeklySlotsGrid from "@/components/WeeklySlotsGrid";
 import RatingModal from "@/components/RatingModal";
+import { LocationPermissionBanner } from "@/components/LocationPermissionBanner";
 import dynamic from "next/dynamic";
 
 const VenueLocationMap = dynamic(
@@ -60,6 +61,40 @@ const UserPanel = ({ venue }: UserPanelProps) => {
     rating?: number;
     review?: string;
   }>({});
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [showLocationBanner, setShowLocationBanner] = useState(false);
+
+  useEffect(() => {
+    // Check if geolocation is supported
+    if (!navigator.geolocation) return;
+
+    // Check permission status
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: "geolocation" }).then((result) => {
+        if (result.state === "granted") {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              setUserLocation([
+                position.coords.latitude,
+                position.coords.longitude,
+              ]);
+            },
+            (error) => {
+              console.error("Error getting location", error);
+            }
+          );
+        } else if (result.state === "prompt") {
+          setShowLocationBanner(true);
+        }
+      });
+    } else {
+      setShowLocationBanner(true);
+    }
+  }, []);
+
+  const handleLocationGranted = (location: [number, number]) => {
+    setUserLocation(location);
+  };
 
   useEffect(() => {
     const checkForUnratedBookings = async () => {
@@ -105,6 +140,13 @@ const UserPanel = ({ venue }: UserPanelProps) => {
 
   return (
     <UserGuard>
+      {showLocationBanner && (
+        <LocationPermissionBanner
+          onPermissionGranted={handleLocationGranted}
+          onPermissionDenied={() => {}}
+          onDismiss={() => setShowLocationBanner(false)}
+        />
+      )}
       <div className="max-w-7xl mx-auto">
         {bookingToRate && (
           <RatingModal
@@ -237,6 +279,7 @@ const UserPanel = ({ venue }: UserPanelProps) => {
                 longitude={venue.longitude}
                 venueName={venue.name}
                 address={venue.address}
+                userLocation={userLocation}
               />
             </div>
             <div className="my-12 border-t" />

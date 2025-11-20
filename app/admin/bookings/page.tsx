@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
+import { Calendar, CheckCircle, XCircle, Clock, Filter } from "lucide-react";
 import {
   collection,
   getDocs,
@@ -75,24 +76,54 @@ export default function AdminBookingsPage(): JSX.Element {
   };
 
   return (
-    <div className="pt-24 pb-8 px-6">
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Bookings</h1>
+        <p className="text-muted-foreground">Manage recent bookings</p>
+      </div>
+
+      {/* Summary Stats */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{bookings.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <Clock className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{bookings.filter(b => b.status === 'pending').length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Approved</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{bookings.filter(b => b.status === 'approved').length}</div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
-        <CardHeader>
-          <CardTitle>Bookings</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="space-y-1.5">
+            <CardTitle>Bookings List</CardTitle>
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchBookings}>
+            Refresh
+          </Button>
         </CardHeader>
 
         <CardContent>
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-sm text-muted-foreground">Manage recent bookings</div>
-            <div>
-              <Button size="sm" variant="ghost" onClick={fetchBookings}>
-                Refresh
-              </Button>
-            </div>
-          </div>
-
-          <Separator className="my-4" />
-
           {loading ? (
             <div className="text-sm text-muted-foreground py-8">Loading…</div>
           ) : bookings.length === 0 ? (
