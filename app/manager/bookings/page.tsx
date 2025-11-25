@@ -29,7 +29,7 @@ import { Loader2, ArrowLeft, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { NoVenueAccess } from "@/components/manager/NoVenueAccess";
-import { unbookSlot } from "@/lib/slotService";
+import { managerCancelBooking } from "@/app/actions/bookings";
 
 const ManagerBookingsPage = () => {
   const { user } = useAuth();
@@ -168,20 +168,19 @@ const ManagerBookingsPage = () => {
       return;
 
     try {
-      // 1. Update booking status in 'bookings' collection
-      const bookingRef = doc(db, "bookings", booking.id);
-      await updateDoc(bookingRef, { status: "CANCELLED_BY_MANAGER" });
-
-      // 2. Free up the slot in 'venueSlots' (using slotService)
-      // Note: unbookSlot handles removing the booking from venueSlots
-      if (venueId) {
-        await unbookSlot(venueId, booking.date, booking.startTime);
+      if (!user) return;
+      const token = await user.getIdToken();
+      
+      const result = await managerCancelBooking(token, booking.id);
+      
+      if (!result.success) {
+        throw new Error(result.error || "Failed to cancel booking");
       }
 
       toast.success("Booking cancelled successfully.");
       fetchVenueAndBookings(); // Refresh the list
-    } catch (error) {
-      toast.error("Failed to cancel the booking.");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to cancel the booking.");
       console.error("Error cancelling booking:", error);
     }
   };

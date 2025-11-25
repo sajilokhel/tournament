@@ -6,21 +6,17 @@ import { db } from "@/lib/firebase";
 import {
   doc,
   getDoc,
-  addDoc,
-  collection,
-  serverTimestamp,
-  Timestamp,
 } from "firebase/firestore";
 import {
   reconstructSlots,
-  bookSlot,
-  unbookSlot,
-  holdSlot,
-  releaseHold,
-  blockSlot,
-  unblockSlot,
   type ReconstructedSlot,
 } from "@/lib/slotService";
+import { 
+  createBooking, 
+  createPhysicalBooking, 
+  unbookBooking 
+} from "@/app/actions/bookings";
+import { blockSlot, unblockSlot } from "@/app/actions/slots";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -146,6 +142,177 @@ const WeeklySlotsGrid: React.FC<WeeklySlotsGridProps> = ({ groundId }) => {
     loadSlots();
   }, [loadSlots]);
 
+  const handleUserBooking = async () => {
+    if (!selectedSlot || !user) return;
+
+    setIsProcessing(true);
+
+    try {
+      const venuePrice = venueDetails?.pricePerHour || 1000;
+      const token = await user.getIdToken();
+
+      const result = await createBooking(
+        token,
+        groundId,
+        selectedSlot.date,
+        selectedSlot.startTime,
+        selectedSlot.endTime,
+        venuePrice
+      );
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      // 3. Redirect to payment
+      router.push(`/payment/${result.bookingId}`);
+
+      toast.success("Slot reserved! Complete payment within 5 minutes.");
+    } catch (error: any) {
+      console.error("Error booking slot:", error);
+      toast.error(error.message || "Failed to book slot");
+    } finally {
+      setIsProcessing(false);
+      setBookingDialogOpen(false);
+    }
+  };
+
+  const handlePhysicalReservation = (slot: ReconstructedSlot) => {
+    setSelectedSlot(slot);
+    setPhysicalBookingData({
+      customerName: "",
+      customerPhone: "",
+      notes: "",
+    });
+    setBookingDialogOpen(true);
+  };
+
+  const handlePhysicalBookingSubmit = async () => {
+    if (!selectedSlot || !user) return;
+
+    if (!physicalBookingData.customerName.trim()) {
+      toast.error("Customer name is required");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const token = await user.getIdToken();
+      
+      const result = await createPhysicalBooking(
+        token,
+        groundId,
+        selectedSlot.date,
+        selectedSlot.startTime,
+        selectedSlot.endTime,
+        physicalBookingData.customerName,
+        physicalBookingData.customerPhone,
+        physicalBookingData.notes
+      );
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      toast.success("Physical booking created successfully!");
+      await loadSlots();
+    } catch (error: any) {
+      console.error("Error creating physical booking:", error);
+      toast.error(error.message || "Failed to create booking");
+    } finally {
+      setIsProcessing(false);
+      setBookingDialogOpen(false);
+    }
+  };
+
+  const handleUnbookPhysical = async (slot: ReconstructedSlot) => {
+    if (!isManager || slot.status !== "BOOKED" || slot.bookingType !== "physical") {
+      return;
+    }
+
+    if (!confirm(`Unbook slot for ${slot.customerName}?`)) {
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const token = await user.getIdToken();
+      const result = await unbookBooking(token, groundId, slot.date, slot.startTime);
+      
+      if (!result.success) throw new Error(result.error);
+      
+      toast.success("Booking removed successfully");
+      await loadSlots();
+    } catch (error: any) {
+      console.error("Error unbooking slot:", error);
+      toast.error(error.message || "Failed to remove booking");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleOpenBlockDialog = (slot: ReconstructedSlot) => {
+    setSelectedSlot(slot);
+    setBlockReason("");
+    setBlockDialogOpen(true);
+  };
+
+  const handleBlockSlot = async () => {
+    if (!selectedSlot || !user) return;
+
+    setIsProcessing(true);
+
+    try {
+      const token = await user.getIdToken();
+      const result = await blockSlot(
+        token,
+        groundId,
+        selectedSlot.date,
+        selectedSlot.startTime,
+        blockReason.trim() || undefined
+      );
+      
+      if (!result.success) throw new Error(result.error);
+      
+      toast.success("Slot blocked successfully");
+      await loadSlots();
+      setBlockDialogOpen(false);
+    } catch (error: any) {
+      console.error("Error blocking slot:", error);
+      toast.error(error.message || "Failed to block slot");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleUnblockSlot = async (slot: ReconstructedSlot) => {
+    if (!isManager || slot.status !== "BLOCKED") {
+      return;
+    }
+
+    if (!confirm("Unblock this slot?")) {
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const token = await user.getIdToken();
+      const result = await unblockSlot(token, groundId, slot.date, slot.startTime);
+      
+      if (!result.success) throw new Error(result.error);
+
+      toast.success("Slot unblocked successfully");
+      await loadSlots();
+    } catch (error: any) {
+      console.error("Error unblocking slot:", error);
+      toast.error(error.message || "Failed to unblock slot");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleSlotClick = (slot: ReconstructedSlot) => {
     // User can't click held slots (except their own - they should go to payment)
@@ -200,204 +367,6 @@ const WeeklySlotsGrid: React.FC<WeeklySlotsGridProps> = ({ groundId }) => {
     }
 
     return false;
-  };
-
-  const handleUserBooking = async () => {
-    if (!selectedSlot || !user) return;
-
-    setIsProcessing(true);
-
-    try {
-      const venuePrice = venueDetails?.pricePerHour || 1000;
-
-      // 1. Hold the slot
-      const bookingId = `booking_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      await holdSlot(
-        groundId,
-        selectedSlot.date,
-        selectedSlot.startTime,
-        user.uid,
-        bookingId,
-        5 // 5 minutes hold
-      );
-
-      // Calculate hold expiry (5 minutes from now)
-      const now = Date.now();
-      const holdExpiresAt = new Date(now + 5 * 60 * 1000); // 5 minutes
-
-      // 2. Create booking document
-      const bookingData = {
-        venueId: groundId,
-        userId: user.uid,
-        date: selectedSlot.date,
-        startTime: selectedSlot.startTime,
-        endTime: selectedSlot.endTime,
-        status: "pending_payment",
-        bookingType: "website",
-        holdExpiresAt: Timestamp.fromDate(holdExpiresAt),
-        createdAt: serverTimestamp(),
-        amount: venuePrice,
-      };
-
-      const bookingRef = await addDoc(collection(db, "bookings"), bookingData);
-
-      // 3. Redirect to payment
-      router.push(`/payment/${bookingRef.id}`);
-
-      toast.success("Slot reserved! Complete payment within 5 minutes.");
-    } catch (error: any) {
-      console.error("Error booking slot:", error);
-      toast.error(error.message || "Failed to book slot");
-    } finally {
-      setIsProcessing(false);
-      setBookingDialogOpen(false);
-    }
-  };
-
-
-  const handlePhysicalReservation = (slot: ReconstructedSlot) => {
-    setSelectedSlot(slot);
-    setPhysicalBookingData({
-      customerName: "",
-      customerPhone: "",
-      notes: "",
-    });
-    setBookingDialogOpen(true);
-  };
-
-  const handlePhysicalBookingSubmit = async () => {
-    if (!selectedSlot || !user) return;
-
-    if (!physicalBookingData.customerName.trim()) {
-      toast.error("Customer name is required");
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      const bookingId = `physical_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      // Create booking in venueSlots
-      await bookSlot(
-        groundId,
-        selectedSlot.date,
-        selectedSlot.startTime,
-        {
-          bookingId,
-          bookingType: "physical",
-          status: "confirmed",
-          customerName: physicalBookingData.customerName,
-          customerPhone: physicalBookingData.customerPhone,
-          notes: physicalBookingData.notes,
-          userId: user.uid,
-        }
-      );
-
-      // Create booking document for records
-      await addDoc(collection(db, "bookings"), {
-        venueId: groundId,
-        userId: user.uid,
-        date: selectedSlot.date,
-        startTime: selectedSlot.startTime,
-        endTime: selectedSlot.endTime,
-        bookingType: "physical",
-        status: "confirmed",
-        customerName: physicalBookingData.customerName,
-        customerPhone: physicalBookingData.customerPhone,
-        notes: physicalBookingData.notes,
-        createdAt: serverTimestamp(),
-        amount: 0, // Physical bookings are managed directly
-      });
-
-      toast.success("Physical booking created successfully!");
-      await loadSlots();
-    } catch (error: any) {
-      console.error("Error creating physical booking:", error);
-      toast.error(error.message || "Failed to create booking");
-    } finally {
-      setIsProcessing(false);
-      setBookingDialogOpen(false);
-    }
-  };
-
- 
-  const handleUnbookPhysical = async (slot: ReconstructedSlot) => {
-    if (!isManager || slot.status !== "BOOKED" || slot.bookingType !== "physical") {
-      return;
-    }
-
-    if (!confirm(`Unbook slot for ${slot.customerName}?`)) {
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      await unbookSlot(groundId, slot.date, slot.startTime);
-      toast.success("Booking removed successfully");
-      await loadSlots();
-    } catch (error: any) {
-      console.error("Error unbooking slot:", error);
-      toast.error(error.message || "Failed to remove booking");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
- 
-  const handleOpenBlockDialog = (slot: ReconstructedSlot) => {
-    setSelectedSlot(slot);
-    setBlockReason("");
-    setBlockDialogOpen(true);
-  };
-
-  const handleBlockSlot = async () => {
-    if (!selectedSlot || !user) return;
-
-    setIsProcessing(true);
-
-    try {
-      await blockSlot(
-        groundId,
-        selectedSlot.date,
-        selectedSlot.startTime,
-        blockReason.trim() || undefined,
-        user.uid
-      );
-      toast.success("Slot blocked successfully");
-      await loadSlots();
-      setBlockDialogOpen(false);
-    } catch (error: any) {
-      console.error("Error blocking slot:", error);
-      toast.error(error.message || "Failed to block slot");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleUnblockSlot = async (slot: ReconstructedSlot) => {
-    if (!isManager || slot.status !== "BLOCKED") {
-      return;
-    }
-
-    if (!confirm("Unblock this slot?")) {
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      await unblockSlot(groundId, slot.date, slot.startTime);
-      toast.success("Slot unblocked successfully");
-      await loadSlots();
-    } catch (error: any) {
-      console.error("Error unblocking slot:", error);
-      toast.error(error.message || "Failed to unblock slot");
-    } finally {
-      setIsProcessing(false);
-    }
   };
 
   const getSlotClassName = (slot: ReconstructedSlot): string => {

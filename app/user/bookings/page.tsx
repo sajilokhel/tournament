@@ -15,7 +15,8 @@ import {
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
-import { unbookSlot, releaseHold } from "@/lib/slotService";
+import { cancelBooking, expireBooking } from "@/app/actions/bookings";
+import { releaseHold } from "@/app/actions/slots";
 import { generateInvoice } from "@/lib/generateInvoice";
 import {
   Card,
@@ -101,14 +102,10 @@ const UserBookingsPage = () => {
           })
           .map(async (booking) => {
             try {
-              const bookingRef = doc(db, "bookings", booking.id);
-              await updateDoc(bookingRef, {
-                status: "expired",
-                expiredAt: serverTimestamp(),
-              });
-
-              // Release the hold from venueSlots
-              await releaseHold(booking.venueId, booking.date, booking.startTime);
+              if (user) {
+                const token = await user.getIdToken();
+                await expireBooking(token, booking.id);
+              }
 
               return { ...booking, status: "expired" };
             } catch (error) {
@@ -220,12 +217,10 @@ const UserBookingsPage = () => {
           console.log("⏰ Found expired holds:", expiredBookings.length);
           for (const booking of expiredBookings) {
             try {
-              const bookingRef = doc(db, "bookings", booking.id);
-              await updateDoc(bookingRef, {
-                status: "expired",
-                expiredAt: serverTimestamp(),
-              });
-              await releaseHold(booking.venueId, booking.date, booking.startTime);
+              if (user) {
+                const token = await user.getIdToken();
+                await expireBooking(token, booking.id);
+              }
               hasChanges = true;
             } catch (error) {
               console.error("Error expiring booking:", error);
@@ -288,18 +283,13 @@ const UserBookingsPage = () => {
   const handleCancelBooking = async (booking: any) => {
     setCancellingId(booking.id);
     try {
-      const response = await fetch(`/api/bookings/${booking.id}/cancel`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId: user?.uid }),
-      });
+      if (!user) return;
+      const token = await user.getIdToken();
+      
+      const result = await cancelBooking(token, booking.id);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to cancel booking");
+      if (!result.success) {
+        throw new Error(result.error || "Failed to cancel booking");
       }
 
       // Update local state
