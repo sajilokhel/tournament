@@ -32,6 +32,7 @@ import { Loader2, Calendar, Settings, Users, Store, CreditCard, Plus } from "luc
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { NoVenueAccess } from "@/components/manager/NoVenueAccess";
+import { calculateCommission, getVenueCommission } from "@/lib/commission";
 
 const ManagerDashboardPage = () => {
   const { user } = useAuth();
@@ -42,6 +43,9 @@ const ManagerDashboardPage = () => {
     pendingBookings: 0,
     physicalBookings: 0,
     onlineBookings: 0,
+    commissionPercentage: 0,
+    commissionAmount: 0,
+    netRevenue: 0,
   });
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +89,10 @@ const ManagerDashboardPage = () => {
       setHasVenueAccess(true);
       const managerVenueId = venueSnapshot.docs[0].id;
       setVenueId(managerVenueId);
+
+      // Get venue data for commission percentage
+      const venueData = venueSnapshot.docs[0].data();
+      const commissionPercentage = getVenueCommission(venueData);
 
       const bookingsQuery = query(
         collection(db, "bookings"),
@@ -130,7 +138,10 @@ const ManagerDashboardPage = () => {
         activeBookings, 
         pendingBookings,
         physicalBookings,
-        onlineBookings
+        onlineBookings,
+        commissionPercentage,
+        commissionAmount: calculateCommission(totalRevenue, commissionPercentage).commissionAmount,
+        netRevenue: calculateCommission(totalRevenue, commissionPercentage).netRevenue,
       });
 
       // Sort by date and time (descending)
@@ -190,8 +201,25 @@ const ManagerDashboardPage = () => {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Rs. {stats.totalRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Gross Revenue:</span>
+                <span className="text-xl font-bold">Rs. {stats.totalRevenue.toLocaleString()}</span>
+              </div>
+              {stats.commissionPercentage > 0 && (
+                <>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">Commission ({stats.commissionPercentage}%):</span>
+                    <span className="text-red-600 font-medium">- Rs. {stats.commissionAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="border-t pt-2 flex justify-between items-center">
+                    <span className="text-sm font-medium">Net Revenue:</span>
+                    <span className="text-2xl font-bold text-green-600">Rs. {stats.netRevenue.toLocaleString()}</span>
+                  </div>
+                </>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
               From {stats.onlineBookings} online bookings
             </p>
           </CardContent>

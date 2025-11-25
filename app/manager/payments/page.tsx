@@ -54,6 +54,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { calculateCommission, getVenueCommission } from "@/lib/commission";
 
 interface PaymentRecord {
   id: string;
@@ -78,6 +79,9 @@ interface ManagerStats {
   totalIncome: number; // Total value of all bookings
   onlineIncome: number; // Income collected by us (eSewa)
   safeOnlineIncome: number; // Online income that is safe to pay (past cancellation window)
+  commissionPercentage: number; // Commission percentage for this venue
+  commissionAmount: number; // Total commission amount
+  netIncome: number; // Total income after commission
 }
 
 export default function ManagerPaymentsPage() {
@@ -95,6 +99,9 @@ export default function ManagerPaymentsPage() {
     totalIncome: 0,
     onlineIncome: 0,
     safeOnlineIncome: 0,
+    commissionPercentage: 0,
+    commissionAmount: 0,
+    netIncome: 0,
   });
 
   const fetchFinancials = async () => {
@@ -117,6 +124,10 @@ export default function ManagerPaymentsPage() {
       const venueIds = venuesSnap.docs.map((d) => d.id);
 
       if (venueIds.length === 0) return;
+
+      // Get commission percentage from first venue
+      const firstVenueDoc = await getDoc(doc(db, "venues", venueIds[0]));
+      const commissionPercentage = firstVenueDoc.exists() ? getVenueCommission(firstVenueDoc.data()) : 0;
 
       // 3. Fetch Bookings for these venues
       const bookingsQuery = query(
@@ -166,6 +177,8 @@ export default function ManagerPaymentsPage() {
         }
       });
 
+      const commission = calculateCommission(totalIncome, commissionPercentage);
+
       setStats({
         totalBookings,
         physicalBookings,
@@ -173,6 +186,9 @@ export default function ManagerPaymentsPage() {
         totalIncome,
         onlineIncome,
         safeOnlineIncome,
+        commissionPercentage,
+        commissionAmount: commission.commissionAmount,
+        netIncome: commission.netRevenue,
       });
 
     } catch (error) {
@@ -336,6 +352,37 @@ export default function ManagerPaymentsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Commission Card */}
+        {stats.commissionPercentage > 0 && (
+          <Card className="border-red-200 dark:border-red-900">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                Commission Deducted
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-3 w-3 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Platform commission ({stats.commissionPercentage}%) deducted from total income.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+              <AlertCircle className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">
+                Rs. {stats.commissionAmount.toLocaleString()}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {stats.commissionPercentage}% of Rs. {stats.totalIncome.toLocaleString()}
+              </p>
+              <p className="text-xs text-green-600 mt-2 font-medium">
+                Net Income: Rs. {stats.netIncome.toLocaleString()}
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Transaction Stats */}
         <div className="grid gap-4 md:grid-cols-3">
