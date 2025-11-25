@@ -43,11 +43,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           if (!userRole) {
             throw new Error("User role not found");
           }
-          setUser({ ...firebaseUser, role: userRole });
+          // Attach role to the user object without spreading to preserve methods
+          const authUser = firebaseUser as AuthUser;
+          authUser.role = userRole;
+          setUser(authUser);
           setRole(userRole);
         } catch (error) {
           console.error("Error fetching user role:", error);
-          setUser(firebaseUser);
+          setUser(firebaseUser as AuthUser);
           setRole(null);
         }
       } else {

@@ -133,7 +133,7 @@ export default function ManagerProfilePage() {
   const isGoogleAuth = user.providerData.some(p => p.providerId === 'google.com');
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 pt-14 lg:pt-0">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Manager Profile</h1>
         <p className="text-gray-500">Manage your account settings and security</p>

@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
 
@@ -40,6 +41,8 @@ export default function ClientLayout({
           {children}
         </Suspense>
       </main>
+      {/* Footer - Hidden on auth pages, admin, and manager routes */}
+      {!hideHeader && <Footer />}
     </AuthProvider>
   );
 }

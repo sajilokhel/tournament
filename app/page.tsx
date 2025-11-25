@@ -72,7 +72,7 @@ const Home = () => {
   return (
     <div className="min-h-screen overflow-x-hidden">
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+      <section className="relative pt-24 pb-16 lg:pt-48 lg:pb-32 overflow-hidden">
         {/* Decorative Background */}
         <div className="absolute inset-0 z-0">
           <div className="absolute top-0 right-0 w-2/3 h-full bg-gradient-to-l from-green-100/50 to-transparent dark:from-green-900/20 dark:to-transparent opacity-60 transition-colors duration-500" />
@@ -90,14 +90,14 @@ const Home = () => {
                 </span>
               </div>
 
-              <h1 className="text-5xl lg:text-7xl font-extrabold leading-tight tracking-tight text-slate-900 dark:text-white">
+              <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold leading-tight tracking-tight text-slate-900 dark:text-white">
                 The Arena is{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-green-400 dark:from-green-500 dark:to-green-100">
                   Calling
                 </span>
               </h1>
 
-              <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg">
+              <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg">
                 Nepal&apos;s #1 platform to discover, book, and manage futsal venues. No calls, no
                 hassle—just game. Discover real-time availability, instant bookings, and secure
                 payments.
@@ -169,10 +169,10 @@ const Home = () => {
                   Join as Player
                 </a>
                 <a
-                  href="/auth/register"
+                  href="/venues"
                   className="inline-flex items-center justify-center px-6 py-3 text-base rounded-full font-semibold transition-all duration-300 bg-transparent text-slate-700 dark:text-white border border-slate-300 dark:border-white/20 hover:border-green-500 dark:hover:border-green-500 hover:text-green-500 dark:hover:text-green-500"
                 >
-                  List Your Venue
+                  List Venue
                 </a>
               </div>
             </div>
@@ -183,13 +183,13 @@ const Home = () => {
                 <img
                   src="https://images.unsplash.com/photo-1560272564-c83b66b1ad12?q=80&w=1949&auto=format&fit=crop"
                   alt="Futsal Player"
-                  className="w-full h-[500px] object-cover object-center"
+                  className="w-full h-[400px] sm:h-[500px] object-cover object-center"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent opacity-30 dark:opacity-40" />
 
                 {/* Live Activity Widget */}
-                <div className="absolute bottom-6 left-6 right-6 bg-white/90 dark:bg-slate-900/95 backdrop-blur-xl p-5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl transition-colors">
-                  <div className="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-white/5 pb-3">
+                <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 bg-white/90 dark:bg-slate-900/95 backdrop-blur-xl p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl transition-colors">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4 border-b border-slate-200 dark:border-white/5 pb-2 sm:pb-3">
                     <div className="flex items-center gap-2">
                       <span className="relative flex h-3 w-3">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
@@ -220,23 +220,23 @@ const Home = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 items-end">
+                  <div className="grid grid-cols-3 gap-3 sm:gap-4 items-end">
                     <div>
-                      <div className="text-3xl font-bold text-slate-900 dark:text-white">12</div>
-                      <div className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold mt-1">
+                      <div className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">12</div>
+                      <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold mt-1">
                         Courts Open
                       </div>
                     </div>
                     <div>
-                      <div className="text-3xl font-bold text-green-500">45</div>
-                      <div className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold mt-1">
+                      <div className="text-2xl sm:text-3xl font-bold text-green-500">45</div>
+                      <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold mt-1">
                         Booking Now
                       </div>
                     </div>
                     <div className="flex flex-col justify-center">
                       <button
                         onClick={() => router.push("/venues")}
-                        className="w-full bg-green-500 hover:bg-green-600 text-white dark:text-green-900 text-xs font-bold py-3 px-3 rounded-xl transition-all duration-300 transform hover:translate-y-[-2px] shadow-lg shadow-green-500/20"
+                        className="w-full bg-green-500 hover:bg-green-600 text-white dark:text-green-900 text-[10px] sm:text-xs font-bold py-2 sm:py-3 px-2 sm:px-3 rounded-xl transition-all duration-300 transform hover:translate-y-[-2px] shadow-lg shadow-green-500/20"
                       >
                         Book Fast
                       </button>

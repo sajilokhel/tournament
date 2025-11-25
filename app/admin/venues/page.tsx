@@ -45,6 +45,7 @@ type Venue = {
   id: string;
   name?: string;
   address?: string;
+  commissionPercentage?: number;
   createdAt?: any;
 };
 
@@ -56,11 +57,13 @@ export default function AdminVenuesPage() {
   const [creating, setCreating] = useState<boolean>(false);
   const [newName, setNewName] = useState<string>("");
   const [newAddress, setNewAddress] = useState<string>("");
+  const [newCommission, setNewCommission] = useState<string>("0");
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>("");
   const [editAddress, setEditAddress] = useState<string>("");
+  const [editCommission, setEditCommission] = useState<string>("0");
 
   const fetchVenues = async () => {
     setLoading(true);
@@ -97,13 +100,16 @@ export default function AdminVenuesPage() {
     }
     setCreating(true);
     try {
+      const commissionValue = parseFloat(newCommission) || 0;
       await addDoc(collection(db, "venues"), {
         name: newName.trim(),
         address: newAddress.trim() || null,
+        commissionPercentage: Math.max(0, Math.min(100, commissionValue)),
         createdAt: new Date().toISOString(),
       });
       setNewName("");
       setNewAddress("");
+      setNewCommission("0");
       toast.success("Venue created");
       fetchVenues();
     } catch (err) {
@@ -118,12 +124,14 @@ export default function AdminVenuesPage() {
     setEditingId(v.id);
     setEditName(v.name ?? "");
     setEditAddress(v.address ?? "");
+    setEditCommission(String(v.commissionPercentage ?? 0));
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditName("");
     setEditAddress("");
+    setEditCommission("0");
   };
 
   const handleSaveEdit = async (id: string) => {
@@ -132,9 +140,11 @@ export default function AdminVenuesPage() {
       return;
     }
     try {
+      const commissionValue = parseFloat(editCommission) || 0;
       await updateDoc(doc(db, "venues", id), {
         name: editName.trim(),
         address: editAddress.trim() || null,
+        commissionPercentage: Math.max(0, Math.min(100, commissionValue)),
       });
       toast.success("Venue updated");
       cancelEdit();
@@ -191,7 +201,7 @@ export default function AdminVenuesPage() {
         <CardContent>
           <form
             onSubmit={handleCreate}
-            className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4"
+            className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4"
           >
             <div className="sm:col-span-1">
               <Input
@@ -210,6 +220,18 @@ export default function AdminVenuesPage() {
                 aria-label="Venue address"
               />
             </div>
+            <div className="sm:col-span-1">
+              <Input
+                type="number"
+                placeholder="Commission %"
+                value={newCommission}
+                onChange={(e) => setNewCommission(e.target.value)}
+                aria-label="Commission percentage"
+                min="0"
+                max="100"
+                step="0.1"
+              />
+            </div>
             <div className="sm:col-span-1 flex items-center gap-2">
               <Button type="submit" disabled={creating}>
                 {creating ? "Creating…" : "Create venue"}
@@ -219,6 +241,7 @@ export default function AdminVenuesPage() {
                 onClick={() => {
                   setNewName("");
                   setNewAddress("");
+                  setNewCommission("0");
                 }}
               >
                 Clear
@@ -243,6 +266,7 @@ export default function AdminVenuesPage() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Address</TableHead>
+                    <TableHead>Commission %</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -270,6 +294,23 @@ export default function AdminVenuesPage() {
                         ) : (
                           <div className="text-sm text-muted-foreground">
                             {v.address ?? "—"}
+                          </div>
+                        )}
+                      </TableCell>
+
+                      <TableCell>
+                        {editingId === v.id ? (
+                          <Input
+                            type="number"
+                            value={editCommission}
+                            onChange={(e) => setEditCommission(e.target.value)}
+                            min="0"
+                            max="100"
+                            step="0.1"
+                          />
+                        ) : (
+                          <div className="text-sm font-medium">
+                            {v.commissionPercentage ?? 0}%
                           </div>
                         )}
                       </TableCell>

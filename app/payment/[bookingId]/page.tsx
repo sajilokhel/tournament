@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
-import { releaseHold } from "@/lib/slotService";
+import { expireBooking } from "@/app/actions/bookings";
 import { initiateEsewaPayment } from "@/lib/esewa/initiate";
 import {
   Card,
@@ -42,17 +42,18 @@ const PaymentPage = () => {
 
   // Handle booking expiration by releasing hold
   const handleBookingExpiration = useCallback(
-    async (bookingId: string, venueId: string, date: string, startTime: string) => {
+    async (bookingId: string) => {
       try {
-        const bookingRef = doc(db, "bookings", bookingId);
-
-        await updateDoc(bookingRef, {
-          status: "EXPIRED",
-          expiredAt: serverTimestamp(),
-        });
-
-        // Release the hold (cleanup happens automatically in slotService)
-        await releaseHold(venueId, date, startTime);
+        if (!user) return;
+        const token = await user.getIdToken();
+        
+        const result = await expireBooking(token, bookingId);
+        
+        if (!result.success) {
+          console.error("Failed to expire booking:", result.error);
+          // Don't show error to user if it's just a cleanup task, 
+          // but here it affects UI state.
+        }
 
         setError("Your hold on this slot has expired.");
         setBooking((prev: any) => ({ ...prev, status: "EXPIRED" }));
@@ -64,8 +65,8 @@ const PaymentPage = () => {
         );
       }
     },
-    []
-  ); // No dependencies needed
+    [user]
+  );
 
   useEffect(() => {
     if (!bookingId) {
@@ -113,12 +114,7 @@ const PaymentPage = () => {
             setTimeLeft(remaining);
           } else {
             console.log("⚠️ Hold expired, calling handleBookingExpiration");
-            handleBookingExpiration(
-              bookingId,
-              bookingData.venueId,
-              bookingData.date,
-              bookingData.startTime
-            );
+            handleBookingExpiration(bookingId);
           }
         }
 
@@ -139,12 +135,7 @@ const PaymentPage = () => {
   useEffect(() => {
     if (timeLeft === null || timeLeft <= 0) {
       if (timeLeft === 0 && booking?.status === "pending_payment") {
-        handleBookingExpiration(
-          bookingId!,
-          booking.venueId,
-          booking.date,
-          booking.startTime
-        );
+        handleBookingExpiration(bookingId!);
       }
       return;
     }

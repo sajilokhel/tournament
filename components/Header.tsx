@@ -117,34 +117,36 @@ const Header = () => {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-white/10 p-6 flex flex-col gap-4 shadow-2xl">
-          <Link href="/" className={`text-lg font-medium py-2 ${getLinkClass("/")}`}>
-            Home
-          </Link>
-          {role === "manager" ? (
-            <Link
-              href="/manager/dashboard"
-              className={`text-lg font-medium py-2 ${getLinkClass("/manager")}`}
-            >
-              Manager Dashboard
+        <div className="md:hidden absolute top-full left-0 w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-white/10 shadow-2xl max-h-[calc(100vh-80px)] overflow-y-auto">
+          <div className="p-6 flex flex-col gap-4">
+            <Link href="/" className={`text-lg font-medium py-2 ${getLinkClass("/")}`}>
+              Home
             </Link>
-          ) : (
-            <>
-              <Link href="/venues" className={`text-lg font-medium py-2 ${getLinkClass("/venues")}`}>
-                Venues
+            {role === "manager" ? (
+              <Link
+                href="/manager/dashboard"
+                className={`text-lg font-medium py-2 ${getLinkClass("/manager")}`}
+              >
+                Manager Dashboard
               </Link>
-              {user && (
-                <Link
-                  href="/user/bookings"
-                  className={`text-lg font-medium py-2 ${getLinkClass("/user/bookings")}`}
-                >
-                  My Bookings
+            ) : (
+              <>
+                <Link href="/venues" className={`text-lg font-medium py-2 ${getLinkClass("/venues")}`}>
+                  Venues
                 </Link>
-              )}
-            </>
-          )}
-          <div className="border-t border-slate-200 dark:border-white/10 pt-4 mt-2">
-            <Auth />
+                {user && (
+                  <Link
+                    href="/user/bookings"
+                    className={`text-lg font-medium py-2 ${getLinkClass("/user/bookings")}`}
+                  >
+                    My Bookings
+                  </Link>
+                )}
+              </>
+            )}
+            <div className="border-t border-slate-200 dark:border-white/10 pt-4 mt-2">
+              <Auth />
+            </div>
           </div>
         </div>
       )}

@@ -99,7 +99,7 @@ const MyVenuesPage = () => {
   // Show venue list if no venue is selected
   if (!selectedVenue) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 pt-14 lg:pt-0">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">My Venues</h1>
@@ -110,7 +110,7 @@ const MyVenuesPage = () => {
             className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
-            Create New Venue
+            <span className="hidden sm:inline">Create New Venue</span>
           </Button>
         </div>
 
@@ -129,7 +129,7 @@ const MyVenuesPage = () => {
                 className="flex items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
-                Create New Venue
+                <span className="hidden sm:inline">Create New Venue</span>
               </Button>
             </div>
           </Card>
@@ -182,7 +182,7 @@ const MyVenuesPage = () => {
 
   // Show selected venue management panel
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pt-14 lg:pt-0">
       <div className="flex items-center gap-2 text-sm text-gray-600">
         <button
           onClick={handleBackToList}

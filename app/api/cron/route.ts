@@ -10,9 +10,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { cleanExpiredHolds } from "@/lib/slotService";
+import { db } from "@/lib/firebase-admin"; // Use Admin SDK
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,18 +24,31 @@ export async function GET(req: NextRequest) {
     };
 
     // Get all venue IDs from venueSlots collection
-    const venueSlotsSnapshot = await getDocs(collection(db, "venueSlots"));
+    const venueSlotsSnapshot = await db.collection("venueSlots").get();
 
     for (const venueDoc of venueSlotsSnapshot.docs) {
       const venueId = venueDoc.id;
       stats.venuesProcessed++;
 
       try {
-        const removed = await cleanExpiredHolds(venueId);
-        stats.holdsRemoved += removed;
+        const data = venueDoc.data();
+        const held = data.held || [];
+        const now = Timestamp.now();
         
-        if (removed > 0) {
-          console.log(`  ✅ Cleaned ${removed} expired holds from venue ${venueId}`);
+        const validHolds = held.filter((slot: any) => {
+          return slot.holdExpiresAt && slot.holdExpiresAt.toMillis() > now.toMillis();
+        });
+        
+        const removedCount = held.length - validHolds.length;
+        
+        if (removedCount > 0) {
+          await venueDoc.ref.update({
+            held: validHolds,
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          
+          stats.holdsRemoved += removedCount;
+          console.log(`  ✅ Cleaned ${removedCount} expired holds from venue ${venueId}`);
         }
       } catch (error) {
         console.error(`  ❌ Error cleaning holds for venue ${venueId}:`, error);

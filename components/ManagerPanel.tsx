@@ -180,22 +180,22 @@ const ManagerPanel = ({ venue }: ManagerPanelProps) => {
         <Separator />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 h-12">
-            <TabsTrigger value="overview" className="text-base">
-              <Settings className="w-4 h-4 mr-2" />
-              Overview
+          <TabsList className="grid w-full grid-cols-4 h-auto py-1 sm:h-12">
+            <TabsTrigger value="overview" className="text-[10px] sm:text-base flex-col sm:flex-row gap-1 sm:gap-2 py-2 sm:py-1.5 h-full">
+              <Settings className="w-4 h-4" />
+              <span>Overview</span>
             </TabsTrigger>
-            <TabsTrigger value="images" className="text-base">
-              <ImageIcon className="w-4 h-4 mr-2" />
-              Images
+            <TabsTrigger value="images" className="text-[10px] sm:text-base flex-col sm:flex-row gap-1 sm:gap-2 py-2 sm:py-1.5 h-full">
+              <ImageIcon className="w-4 h-4" />
+              <span>Images</span>
             </TabsTrigger>
-            <TabsTrigger value="location" className="text-base">
-              <Eye className="w-4 h-4 mr-2" />
-              Location
+            <TabsTrigger value="location" className="text-[10px] sm:text-base flex-col sm:flex-row gap-1 sm:gap-2 py-2 sm:py-1.5 h-full">
+              <Eye className="w-4 h-4" />
+              <span>Location</span>
             </TabsTrigger>
-            <TabsTrigger value="slots" className="text-base">
-              <Eye className="w-4 h-4 mr-2" />
-              Availability
+            <TabsTrigger value="slots" className="text-[10px] sm:text-base flex-col sm:flex-row gap-1 sm:gap-2 py-2 sm:py-1.5 h-full">
+              <Eye className="w-4 h-4" />
+              <span>Availability</span>
             </TabsTrigger>
           </TabsList>
 
