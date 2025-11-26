@@ -131,17 +131,24 @@ const UserBookingsPage = () => {
         if (pendingBookings.length > 0) {
           console.log("🔍 Auto-verifying pending payments:", pendingBookings.length);
           
-          const verifyPromises = pendingBookings.map(async (booking) => {
+              const verifyPromises = pendingBookings.map(async (booking) => {
             try {
+              // Prefer the full eSewa transaction UUID if it's been saved on the booking.
+              const effectiveTxn = (booking as any).esewaTransactionUuid || booking.id;
+
+              if (!(booking as any).esewaTransactionUuid) {
+                console.warn('⚠️ No saved esewaTransactionUuid for booking, skipping strict verify using booking.id:', booking.id);
+              }
+
               const verifyResponse = await fetch("/api/payment/verify", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  transactionUuid: booking.id,
+                  transactionUuid: effectiveTxn,
                   productCode: "EPAYTEST",
-                  totalAmount: booking.amount || booking.price || 0,
+                    totalAmount: (booking as any).amount || (booking as any).price || 0,
                 }),
               });
 
@@ -238,13 +245,19 @@ const UserBookingsPage = () => {
           console.log("🔍 Checking pending payments:", pendingPayments.length);
           for (const booking of pendingPayments) {
             try {
+              const effectiveTxn = (booking as any).esewaTransactionUuid || booking.id;
+
+              if (!(booking as any).esewaTransactionUuid) {
+                console.warn('⚠️ No saved esewaTransactionUuid for booking, skipping strict verify using booking.id:', booking.id);
+              }
+
               const verifyResponse = await fetch("/api/payment/verify", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  transactionUuid: booking.id,
+                  transactionUuid: effectiveTxn,
                   productCode: "EPAYTEST",
-                  totalAmount: booking.amount || booking.price || 0,
+                  totalAmount: (booking as any).amount || (booking as any).price || 0,
                 }),
               });
               const data = await verifyResponse.json();

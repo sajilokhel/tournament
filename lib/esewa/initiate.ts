@@ -14,6 +14,8 @@ import {
   getFailureUrl,
   type EsewaPaymentParams,
 } from './config';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 /**
  * Generate signature by calling the server-side API
@@ -150,6 +152,20 @@ export async function initiateEsewaPayment(
     };
 
     // Submit payment form (redirects to eSewa)
+    // Persist the generated transaction UUID on the booking document so
+    // background/auto-verification can use the exact value that was sent to eSewa.
+    try {
+      const bookingRef = doc(db, 'bookings', bookingId);
+      await updateDoc(bookingRef, {
+        esewaTransactionUuid: transactionUuid,
+        esewaInitiatedAt: serverTimestamp(),
+      });
+      console.log('✅ Saved esewaTransactionUuid on booking:', transactionUuid);
+    } catch (err) {
+      // Non-fatal: log and continue to redirect to eSewa. We still submit the form.
+      console.warn('⚠️ Failed to persist esewaTransactionUuid on booking:', err);
+    }
+
     submitPaymentForm(paymentParams, signature);
   } catch (error) {
     console.error('Error initiating eSewa payment:', error);
