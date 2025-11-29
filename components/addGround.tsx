@@ -15,12 +15,9 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UploadButton } from "@/lib/uploadthing";
-import { db } from "@/lib/firebase";
-import { collection, addDoc } from "firebase/firestore";
-import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
-import { initializeVenueSlots } from "@/lib/slotService";
 import LocationPicker from "@/components/LocationPicker";
 import { Loader2 } from "lucide-react";
 
@@ -151,60 +148,74 @@ const AddGround = ({
       return;
     }
 
-    setCreating(true);
-    try {
-      // Create venue document
-      const newVenueRef = await addDoc(collection(db, "venues"), {
-        name: groundName.trim(),
-        description: groundDescription.trim() || null,
-        latitude: latitude,
-        longitude: longitude,
-        address: address.trim() || null,
-        imageUrls: groundPhotos,
-        pricePerHour: parseFloat(pricePerHour),
-        attributes: attributes.reduce((acc, attr) => {
-          if (attr.key.trim() && attr.value.trim()) {
-            acc[attr.key.trim()] = attr.value.trim();
-          }
-          return acc;
-        }, {} as { [key: string]: string }),
-        createdAt: new Date().toISOString(),
-        managedBy: user.uid,
-      });
+      setCreating(true);
+      try {
+        const token = await user.getIdToken();
 
-      // Initialize slot configuration
-      await initializeVenueSlots(newVenueRef.id, {
-        startTime,
-        endTime,
-        slotDuration,
-        daysOfWeek,
-        timezone: "Asia/Kathmandu",
-      });
+        const payload = {
+          name: groundName.trim(),
+          description: groundDescription.trim() || null,
+          latitude,
+          longitude,
+          address: address.trim() || null,
+          imageUrls: groundPhotos,
+          pricePerHour: parseFloat(pricePerHour),
+          attributes: attributes.reduce((acc, attr) => {
+            if (attr.key.trim() && attr.value.trim()) {
+              acc[attr.key.trim()] = attr.value.trim();
+            }
+            return acc;
+          }, {} as { [key: string]: string }),
+          slotConfig: {
+            startTime,
+            endTime,
+            slotDuration,
+            daysOfWeek,
+            timezone: "Asia/Kathmandu",
+          },
+        };
 
-      // Reset form
-      setGroundName("");
-      setGroundDescription("");
-      setGroundPhotos([]);
-      setPricePerHour("");
-      setAttributes([]);
-      setLatitude(27.7172);
-      setLongitude(85.3240);
-      setAddress("");
-      setStartTime("06:00");
-      setEndTime("22:00");
-      setSlotDuration(60);
-      setDaysOfWeek([0, 1, 2, 3, 4, 5, 6]);
-      setCurrentTab("basic");
-      
-      setIsFormOpen(false);
-      toast.success("Venue created successfully with slot configuration!");
-      fetchGrounds();
-    } catch (err) {
-      console.error("Create venue failed", err);
-      toast.error("Failed to create venue");
-    } finally {
-      setCreating(false);
-    }
+        const resp = await fetch('/api/venues', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!resp.ok) {
+          const json = await resp.json().catch(() => ({}));
+          console.error('Create venue API failed:', json);
+          toast.error(json?.error || 'Failed to create venue');
+          setCreating(false);
+          return;
+        }
+
+        // Reset form
+        setGroundName("");
+        setGroundDescription("");
+        setGroundPhotos([]);
+        setPricePerHour("");
+        setAttributes([]);
+        setLatitude(27.7172);
+        setLongitude(85.3240);
+        setAddress("");
+        setStartTime("06:00");
+        setEndTime("22:00");
+        setSlotDuration(60);
+        setDaysOfWeek([0, 1, 2, 3, 4, 5, 6]);
+        setCurrentTab("basic");
+
+        setIsFormOpen(false);
+        toast.success("Venue created successfully with slot configuration!");
+        fetchGrounds();
+      } catch (err) {
+        console.error("Create venue failed", err);
+        toast.error("Failed to create venue");
+      } finally {
+        setCreating(false);
+      }
   };
 
   return (
