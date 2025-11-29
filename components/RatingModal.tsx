@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { doc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -36,28 +35,24 @@ const RatingModal = ({
 }: RatingModalProps) => {
   const [rating, setRating] = useState(currentRating || 0);
   const [review, setReview] = useState(currentReview || "");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
   const handleRating = async () => {
-    try {
-      const token = await (window as any)?.firebaseAuth?.currentUser?.getIdToken?.() || null;
-      // If AuthContext is available in this component, prefer that; otherwise try window firebase
-      let idToken = token;
-      if (!idToken && (window as any).firebase && (window as any).firebase.auth) {
-        idToken = await (window as any).firebase.auth().currentUser.getIdToken();
-      }
+    if (!user) {
+      toast.error('Please sign in to submit a rating');
+      return;
+    }
 
-      if (!idToken) {
-        // Fallback: try to access from local storage or fail
-        try {
-          const u = await fetch('/api/auth/me');
-        } catch (e) {}
-      }
+    setIsSubmitting(true);
+    try {
+      const idToken = await user.getIdToken();
 
       const resp = await fetch(`/api/venues/${venueId}/reviews`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: idToken ? `Bearer ${idToken}` : '',
+          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({ rating, comment: review, bookingId }),
       });
@@ -74,6 +69,8 @@ const RatingModal = ({
     } catch (error) {
       console.error('Error submitting rating:', error);
       toast.error('Failed to submit your rating. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -102,7 +99,9 @@ const RatingModal = ({
           />
         </div>
         <DialogFooter>
-          <Button onClick={handleRating}>Submit</Button>
+          <Button onClick={handleRating} disabled={isSubmitting}>
+            {isSubmitting ? 'Submitting...' : 'Submit'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
