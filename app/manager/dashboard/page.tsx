@@ -74,13 +74,26 @@ const ManagerDashboardPage = () => {
     setLoading(true);
 
     try {
-      const venuesQuery = query(
+      // Some venues may store `managedBy` as a string (single manager)
+      // while others may store it as an array of manager UIDs.
+      // Run both queries and merge results to be tolerant of both shapes.
+      const eqQuery = query(
         collection(db, "venues"),
         where("managedBy", "==", user.uid),
       );
-      const venueSnapshot = await getDocs(venuesQuery);
+      const arrQuery = query(
+        collection(db, "venues"),
+        where("managedBy", "array-contains", user.uid),
+      );
 
-      if (venueSnapshot.empty) {
+      const [eqSnap, arrSnap] = await Promise.all([getDocs(eqQuery), getDocs(arrQuery)]);
+
+      // Merge unique docs from both snapshots
+      const docsMap = new Map<string, any>();
+      eqSnap.docs.forEach((d) => docsMap.set(d.id, d));
+      arrSnap.docs.forEach((d) => docsMap.set(d.id, d));
+
+      if (docsMap.size === 0) {
         setHasVenueAccess(false);
         setLoading(false);
         return;
@@ -89,12 +102,12 @@ const ManagerDashboardPage = () => {
       setHasVenueAccess(true);
 
       // Collect all venues managed by this manager
-      const managerVenueIds = venueSnapshot.docs.map((d) => d.id);
+      const managerVenueIds = Array.from(docsMap.keys());
       setVenueIds(managerVenueIds);
 
       // Build a map of venue data for commission and display
       const venuesMap = new Map<string, any>();
-      venueSnapshot.docs.forEach((d) => venuesMap.set(d.id, d.data()));
+      Array.from(docsMap.values()).forEach((d: any) => venuesMap.set(d.id, d.data()));
 
       // Fetch bookings for all venues (chunked for `in` query limit)
       const allBookings: any[] = [];
