@@ -10,6 +10,7 @@ import {
   getDocs,
   orderBy,
   Timestamp,
+  documentId,
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -247,7 +248,8 @@ const ManagerBookingsPage = () => {
       if (!user) return;
       const token = await user.getIdToken();
       
-      const result = await managerCancelBooking(token, booking.id);
+      const { cancelBooking } = await import("@/app/actions/bookings");
+      const result = await cancelBooking(token, booking.id);
       
       if (!result.success) {
         throw new Error(result.error || "Failed to cancel booking");
