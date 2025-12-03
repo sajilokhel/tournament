@@ -11,7 +11,7 @@ export const Logo: React.FC<{ className?: string }> = ({ className }) => {
         <div className="absolute -inset-2 bg-orange-500/30 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
         <Image
-          src="/icons/logo.png"
+          src="/logo_no_bg.png"
           alt="Sajilokhel Logo"
           width={40}
           height={40}
