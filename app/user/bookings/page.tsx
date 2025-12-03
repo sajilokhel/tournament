@@ -694,44 +694,22 @@ const UserBookingsPage = () => {
               >
                 View Venue
               </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="flex-1"
-                    disabled={cancellingId === booking.id}
-                    title="Cancel booking"
-                  >
-                    {cancellingId === booking.id ? (
-                      <>
-                        <Loader2 className="animate-spin w-4 h-4 mr-2" />
-                        Cancelling...
-                      </>
-                    ) : (
-                      "Cancel"
-                    )}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Cancel Booking?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to cancel this booking? This action cannot be undone.
-                      Please check our cancellation policy for any applicable fees.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Keep Booking</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => handleCancelBooking(booking)}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Yes, Cancel
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="flex-1"
+                onClick={() => router.push(`/refund?bookingId=${booking.id}`)}
+                title="Request cancel and refund"
+              >
+                {cancellingId === booking.id ? (
+                  <>
+                    <Loader2 className="animate-spin w-4 h-4 mr-2" />
+                    Processing...
+                  </>
+                ) : (
+                  "Cancel & Refund"
+                )}
+              </Button>
               </div>
           </CardFooter>
         </>
