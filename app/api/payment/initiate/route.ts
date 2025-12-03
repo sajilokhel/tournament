@@ -7,7 +7,7 @@ import { ESEWA_MERCHANT_CODE, ESEWA_SECRET_KEY, getSuccessUrl, getFailureUrl } f
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { bookingId, totalAmount } = body;
+    const { bookingId, amount, totalAmount } = body;
 
     if (!bookingId || !totalAmount) {
       return NextResponse.json({ error: 'Missing bookingId or totalAmount' }, { status: 400 });
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       transactionUuid,
       signature,
       paymentParams: {
-        amount: String(booking.amount || totalAmount),
+        amount: String(amount || totalAmount), // Use passed amount or fallback to totalAmount
         totalAmount: String(totalAmount),
         transactionUuid,
         productCode: ESEWA_MERCHANT_CODE,

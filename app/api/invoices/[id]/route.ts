@@ -6,12 +6,12 @@ import QRCode from 'qrcode';
 import crypto from 'crypto';
 
 // Server-side invoice generator
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!isAdminInitialized()) {
     return NextResponse.json({ error: 'Server misconfigured: Admin SDK not initialized' }, { status: 500 });
   }
 
-  const bookingId = params.id;
+  const { id: bookingId } = await params;
 
   // Authenticate caller
   const authHeader = request.headers.get('authorization') || '';
@@ -163,13 +163,37 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         addRow('Platform', 'Mobile App (SajiloKhel)');
 
         // Total Amount label and value
-        const formattedAmount = (Number(invoiceData.amount) || 0).toFixed(2);
+        // Total Amount label and value
+        const totalAmount = Number(invoiceData.amount) || 0;
+        const advanceAmount = booking.advanceAmount || Math.ceil((totalAmount * 16.6) / 100);
+        const dueAmount = booking.dueAmount || (totalAmount - advanceAmount);
+        
+        const formattedTotal = totalAmount.toFixed(2);
+        const formattedAdvance = advanceAmount.toFixed(2);
+        const formattedDue = dueAmount.toFixed(2);
+
         y += 6;
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(12);
         doc.text('Total Amount', leftColX, y);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`Rs. ${formattedAmount}`, rightColX + 120, y);
+        doc.text(`Rs. ${formattedTotal}`, rightColX + 120, y);
+        
+        y += 18;
+        doc.setFontSize(10);
+        doc.setTextColor(0, 128, 0); // Green for advance
+        doc.text('Advance Paid', leftColX, y);
+        doc.text(`Rs. ${formattedAdvance}`, rightColX + 120, y);
+        
+        y += 18;
+        doc.setTextColor(220, 53, 69); // Red for due
+        doc.text('Due Amount', leftColX, y);
+        doc.text(`Rs. ${formattedDue}`, rightColX + 120, y);
+        
+        y += 18;
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.setFont('helvetica', 'italic');
+        doc.text('Note: The due amount is to be paid after the game at the venue.', leftColX, y);
 
         // Large centered QR below (payload is minimal to keep QR simple)
         try {
@@ -200,6 +224,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const fileName = `invoice-${invoiceData.bookingId}.pdf`;
     const arrayBuffer = doc.output('arraybuffer');
     const buffer = Buffer.from(arrayBuffer as ArrayBuffer);
+    
+    console.log('✅ Invoice PDF generated successfully:', fileName, 'Size:', buffer.length, 'bytes');
 
     return new Response(buffer, {
       headers: {
@@ -207,8 +233,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         'Content-Disposition': `attachment; filename="${fileName}"`,
       },
     });
-  } catch (err) {
-    console.error('Invoice generation error:', err);
-    return NextResponse.json({ error: 'Failed to generate invoice' }, { status: 500 });
+  } catch (err: any) {
+    console.error('❌ Invoice generation error:', err);
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    return NextResponse.json({ 
+      error: 'Failed to generate invoice',
+      details: err.message 
+    }, { status: 500 });
   }
 }

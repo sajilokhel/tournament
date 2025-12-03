@@ -5,22 +5,39 @@ import { auth as firebaseAdminAuth, isAdminInitialized } from "../../../lib/fire
 const f = createUploadthing();
 
 const auth = async (req: Request) => {
+  console.log("UploadThing middleware: Starting auth check");
+  
   if (!isAdminInitialized()) {
+    console.error("UploadThing middleware: Firebase Admin SDK not initialized");
     throw new Error("Firebase Admin SDK is not initialized on the server");
   }
 
-  const authHeader = req.headers.get("authorization") || "";
+  const authHeader = req.headers.get("authorization");
+  console.log("UploadThing middleware: Auth header present?", !!authHeader);
+
+  if (!authHeader) {
+    console.warn("UploadThing middleware: No authorization header found");
+    return null;
+  }
+
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
   const idToken = match ? match[1] : null;
 
-  if (!idToken) return null;
+  if (!idToken) {
+    console.warn("UploadThing middleware: Invalid bearer token format");
+    return null;
+  }
 
   try {
     // `firebaseAdminAuth` is the Admin Auth instance exported from `lib/firebase-admin`
+    console.log("UploadThing middleware: Verifying ID token...");
     const decoded = await firebaseAdminAuth.verifyIdToken(idToken);
+    console.log("UploadThing middleware: Token verified for user", decoded.uid);
     return { id: decoded.uid, email: decoded.email };
-  } catch (err) {
-    console.error("UploadThing auth: failed to verify ID token", err);
+  } catch (err: any) {
+    console.error("UploadThing middleware: Failed to verify ID token", err);
+    // Log the full error object for debugging
+    console.error(JSON.stringify(err, null, 2));
     return null;
   }
 };

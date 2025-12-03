@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useUploadThing } from "@/lib/uploadthing";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -11,7 +12,13 @@ interface UploadThingProps {
 
 export function UploadThing({ onUpload }: UploadThingProps) {
   const [file, setFile] = useState<File | null>(null);
+  const { user } = useAuth();
   const { startUpload, isUploading } = useUploadThing("imageUploader", {
+    headers: async () => {
+      if (!user) return { Authorization: "" }; // Return empty string instead of undefined/missing key if needed, or just empty object casted
+      const token = await user.getIdToken();
+      return { Authorization: `Bearer ${token}` };
+    },
     onClientUploadComplete: (res) => {
       if (res && res.length > 0) {
         onUpload(res[0].url);

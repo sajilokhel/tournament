@@ -93,8 +93,11 @@ export async function POST(request: NextRequest) {
     const signature = generateVerificationSignature(transactionUuid);
 
     // Prepare verification request
-    // Note: totalAmount must match the original transaction amount
-    const verifyUrl = `${ESEWA_VERIFY_URL}?product_code=${productCode}&total_amount=${totalAmount || 0}&transaction_uuid=${transactionUuid}`;
+    // Normalize totalAmount: remove trailing .0 or .00 if it's an integer value
+    // eSewa might return 200.0 but expects 200 in verification if that's what was signed/initiated.
+    const normalizedAmount = Number(totalAmount);
+    // Use the normalized amount for verification URL
+    const verifyUrl = `${ESEWA_VERIFY_URL}?product_code=${productCode}&total_amount=${normalizedAmount}&transaction_uuid=${transactionUuid}`;
     
     console.log('📡 Calling eSewa verify URL:', verifyUrl);
     
@@ -113,6 +116,7 @@ export async function POST(request: NextRequest) {
           error: 'Payment verification failed',
           details: errorText,
           verified: false,
+          status: 'FAILED', // Explicit status for client
         },
         { status: 400 }
       );

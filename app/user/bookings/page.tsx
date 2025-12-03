@@ -417,7 +417,7 @@ const UserBookingsPage = () => {
         body: JSON.stringify({
           transactionUuid: (booking as any).esewaTransactionUuid || booking.id,
           productCode: "EPAYTEST", // TODO: Get from env
-          totalAmount: booking.amount || booking.price || 0,
+          totalAmount: (booking as any).advanceAmount || Math.ceil(((booking.amount || booking.price || 0) * 16.6) / 100),
         }),
       });
 
@@ -615,10 +615,28 @@ const UserBookingsPage = () => {
         <Separator className="my-3" />
 
         <div className="flex justify-between items-center">
-          <span className="text-sm text-muted-foreground">Amount</span>
+          <span className="text-sm text-muted-foreground">Total Amount</span>
           <span className="text-lg font-bold">
             Rs. {booking.amount || booking.price || 0}
           </span>
+        </div>
+        
+        <div className="flex justify-between items-center mt-2">
+          <span className="text-sm text-muted-foreground">Advance Paid</span>
+          <span className="text-sm font-semibold text-green-600">
+            Rs. {booking.advanceAmount || Math.ceil(((booking.amount || booking.price || 0) * 16.6) / 100)}
+          </span>
+        </div>
+
+        <div className="flex justify-between items-center mt-1">
+          <span className="text-sm text-muted-foreground">Due Amount</span>
+          <span className="text-sm font-semibold text-red-600">
+            Rs. {booking.dueAmount || (booking.amount || booking.price || 0) - Math.ceil(((booking.amount || booking.price || 0) * 16.6) / 100)}
+          </span>
+        </div>
+        
+        <div className="mt-3 bg-muted/50 p-2 rounded text-xs text-center text-muted-foreground">
+          Note: The due amount is to be paid after the game at the venue.
         </div>
       </CardContent>
 

@@ -179,11 +179,14 @@ const PaymentPage = () => {
     setIsProcessing(true);
 
     try {
-      // Initiate eSewa payment
-      // This will redirect the user to eSewa payment gateway
+      // Calculate advance amount if not present (fallback for legacy or immediate updates)
+      const totalAmount = booking.amount || booking.price || 0;
+      const advanceAmount = booking.advanceAmount || Math.ceil((totalAmount * 16.6) / 100);
+
+      // Initiate eSewa payment with advance amount
       await initiateEsewaPayment(
         bookingId,
-        booking.amount || booking.price || 0
+        advanceAmount
       );
       
       // Note: User will be redirected to eSewa, so code after this won't execute
@@ -270,9 +273,31 @@ const PaymentPage = () => {
               </p>
             </div>
           </div>
-          <div className="border bg-muted rounded-lg p-4 space-y-2">
-            <p className="text-muted-foreground">Total Price</p>
-            <p className="text-3xl font-bold">Rs. {booking.amount || booking.price || 0}</p>
+          <div className="border bg-muted rounded-lg p-4 space-y-4">
+            <div className="flex justify-between items-center">
+              <p className="text-muted-foreground">Total Price</p>
+              <p className="font-semibold">Rs. {booking.amount || booking.price || 0}</p>
+            </div>
+            
+            <div className="flex justify-between items-center text-primary">
+              <div className="flex flex-col">
+                <p className="font-semibold">Advance Payment (16.6%)</p>
+                <p className="text-xs text-muted-foreground">To confirm booking</p>
+              </div>
+              <p className="text-xl font-bold">
+                Rs. {booking.advanceAmount || Math.ceil(((booking.amount || booking.price || 0) * 16.6) / 100)}
+              </p>
+            </div>
+
+            <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+              <p className="text-muted-foreground">Due Amount</p>
+              <p className="font-semibold">
+                Rs. {booking.dueAmount || (booking.amount || booking.price || 0) - Math.ceil(((booking.amount || booking.price || 0) * 16.6) / 100)}
+              </p>
+            </div>
+            <p className="text-xs text-center text-muted-foreground bg-gray-100 dark:bg-gray-800 p-2 rounded">
+              The due amount needs to be paid at the venue.
+            </p>
           </div>
 
           {!isExpired ? (
@@ -306,7 +331,7 @@ const PaymentPage = () => {
             disabled={isProcessing || isExpired}
           >
             {isProcessing ? <Loader2 className="animate-spin mr-2" /> : null}
-            {isExpired ? "Hold Expired" : "Confirm & Pay"}
+            {isExpired ? "Hold Expired" : `Pay Advance Rs. ${booking.advanceAmount || Math.ceil(((booking.amount || booking.price || 0) * 16.6) / 100)}`}
           </Button>
         </CardFooter>
       </Card>

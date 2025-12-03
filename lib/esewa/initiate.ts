@@ -22,12 +22,13 @@ import {
  */
 async function requestInitiationFromServer(
   bookingId: string,
+  amount: string,
   totalAmount: string
 ): Promise<{ signature: string; transactionUuid: string; paymentParams: EsewaPaymentParams } > {
   const response = await fetch('/api/payment/initiate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ bookingId, totalAmount }),
+    body: JSON.stringify({ bookingId, amount, totalAmount }),
   });
 
   if (!response.ok) {
@@ -123,6 +124,7 @@ export async function initiateEsewaPayment(
     // Ask the server to create the canonical transaction UUID and signature
     const { signature, transactionUuid, paymentParams } = await requestInitiationFromServer(
       bookingId,
+      amount.toString(),
       totalAmount.toString()
     );
 

@@ -76,6 +76,10 @@ export async function createBooking(
     });
     
     // 2. Create Booking Document
+    const advancePercentage = 16.6;
+    const advanceAmount = Math.ceil((amount * advancePercentage) / 100);
+    const dueAmount = amount - advanceAmount;
+
     const bookingData = {
       venueId,
       userId,
@@ -87,6 +91,9 @@ export async function createBooking(
       holdExpiresAt: Timestamp.fromMillis(Date.now() + 5 * 60 * 1000),
       createdAt: FieldValue.serverTimestamp(),
       amount,
+      advanceAmount,
+      dueAmount,
+      paymentStatus: "pending", // pending, partial, full
     };
     
     const bookingRef = db.collection("bookings").doc(bookingId);
@@ -303,6 +310,7 @@ export async function createPhysicalBooking(
       notes,
       createdAt: FieldValue.serverTimestamp(),
       amount: 0,
+      paymentStatus: "full", // Physical bookings are usually paid or handled on spot
     };
     
     await db.collection("bookings").add(bookingData);
@@ -465,5 +473,45 @@ export async function managerCancelBooking(token: string, bookingId: string) {
   } catch (error: any) {
     console.error("Error cancelling booking by manager:", error);
     return { success: false, error: error.message || "Failed to cancel booking" };
+  }
+}
+
+export async function markBookingAsPaid(
+  token: string,
+  bookingId: string,
+  paymentMethod: "cash" | "online"
+) {
+  try {
+    const bookingRef = db.collection("bookings").doc(bookingId);
+    const bookingDoc = await bookingRef.get();
+
+    if (!bookingDoc.exists) {
+      return { success: false, error: "Booking not found" };
+    }
+
+    const booking = bookingDoc.data();
+    if (!booking?.venueId) {
+      return { success: false, error: "Invalid booking data" };
+    }
+
+    // Verify manager
+    const isManager = await verifyManager(token, booking.venueId);
+    if (!isManager) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Update booking payment status
+    await bookingRef.update({
+      paymentStatus: "full",
+      duePaymentMethod: paymentMethod,
+      duePaidAt: FieldValue.serverTimestamp(),
+      dueAmount: 0, // Clear due amount as it's paid
+    });
+
+    revalidatePath("/manager/bookings");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error marking booking as paid:", error);
+    return { success: false, error: error.message || "Failed to mark as paid" };
   }
 }

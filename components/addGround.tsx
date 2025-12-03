@@ -14,7 +14,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UploadButton } from "@/lib/uploadthing";
+import { uploadFiles } from "@/lib/uploadthing";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
@@ -436,34 +436,61 @@ const AddGround = ({
               <p className="text-sm text-muted-foreground mb-2">
                 Upload at least one image of your venue
               </p>
-              <UploadButton
-                endpoint="imageUploader"
-                appearance={{
-                  button:
-                    "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full",
-                  container: "w-full",
-                  allowedContent: "hidden",
-                }}
-                content={{
-                  button: groundPhotos.length > 0 
-                    ? `${groundPhotos.length} image(s) uploaded - Upload more`
-                    : "Choose Images (up to 5)",
-                }}
-                onUploadProgress={(progress) => {
-                  setUploadProgress(progress);
-                }}
-                onClientUploadComplete={(res) => {
-                  if (res) {
-                    const urls = res.map((r) => r.url);
-                    setGroundPhotos([...groundPhotos, ...urls]);
-                    toast.success("Images uploaded successfully");
-                    setUploadProgress(0);
-                  }
-                }}
-                onUploadError={(error: Error) => {
-                  toast.error(`Upload failed: ${error.message}`);
-                }}
-              />
+              <div className="space-y-2">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={async (e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (files.length === 0) return;
+                    
+                    if (!user) {
+                      toast.error("You must be logged in to upload images");
+                      return;
+                    }
+
+                    try {
+                      setUploadProgress(10);
+                      const token = await user.getIdToken();
+                      
+                      setUploadProgress(30);
+                      
+                      // Use uploadFiles utility with headers
+                      const uploaded = await uploadFiles("imageUploader", {
+                        files,
+                        headers: {
+                          Authorization: `Bearer ${token}`,
+                        },
+                      });
+
+                      setUploadProgress(70);
+
+                      if (uploaded && uploaded.length > 0) {
+                        const urls = uploaded.map((r) => r.url);
+                        setGroundPhotos([...groundPhotos, ...urls]);
+                        toast.success("Images uploaded successfully");
+                      }
+                      
+                      setUploadProgress(100);
+                      setTimeout(() => setUploadProgress(0), 500);
+                      
+                      // Reset input
+                      e.target.value = "";
+                    } catch (error: any) {
+                      console.error("Upload error:", error);
+                      toast.error(`Upload failed: ${error.message}`);
+                      setUploadProgress(0);
+                    }
+                  }}
+                  className="cursor-pointer"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {groundPhotos.length > 0 
+                    ? `${groundPhotos.length} image(s) uploaded`
+                    : "Choose images (up to 5)"}
+                </p>
+              </div>
               {uploadProgress > 0 && (
                 <Progress value={uploadProgress} className="mt-2" />
               )}

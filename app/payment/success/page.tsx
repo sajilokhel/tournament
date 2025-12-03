@@ -111,9 +111,10 @@ export default function PaymentSuccessPage() {
 
       if (!verificationData.verified || verificationData.status !== "COMPLETE") {
         setStatus("error");
-        setMessage(
-          `Payment verification failed. Status: ${verificationData.status || "Unknown"}`
-        );
+        const errorMsg = verificationData.details 
+          ? `Payment verification failed: ${verificationData.details}`
+          : `Payment verification failed. Status: ${verificationData.status || "Unknown"}`;
+        setMessage(errorMsg);
         return;
       }
 

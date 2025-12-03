@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
 import {
@@ -8,12 +8,36 @@ import {
   query,
   where,
   getDocs,
-  doc,
-  writeBatch,
+  orderBy,
+  Timestamp,
   documentId,
-  updateDoc,
 } from "firebase/firestore";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Loader2,
+  Search,
+  Calendar,
+  MapPin,
+  Clock,
+  DollarSign,
+  User,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Download,
+  ArrowLeft,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -22,15 +46,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { Loader2, ArrowLeft, Search } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
-import { managerCancelBooking } from "@/app/actions/bookings";
-import { useSearchParams } from "next/navigation";
-import { useRef } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { markBookingAsPaid } from "@/app/actions/bookings";
 
 const ManagerBookingsPage = () => {
   const { user } = useAuth();
@@ -44,6 +77,12 @@ const ManagerBookingsPage = () => {
   const [highlightedBookingId, setHighlightedBookingId] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const bookingRefs = useRef<Map<string, HTMLElement>>(new Map());
+
+  // Payment Dialog State
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "online">("cash");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const fetchVenueAndBookings = useCallback(async () => {
     if (!user) return;
@@ -209,7 +248,8 @@ const ManagerBookingsPage = () => {
       if (!user) return;
       const token = await user.getIdToken();
       
-      const result = await managerCancelBooking(token, booking.id);
+      const { cancelBooking } = await import("@/app/actions/bookings");
+      const result = await cancelBooking(token, booking.id);
       
       if (!result.success) {
         throw new Error(result.error || "Failed to cancel booking");
@@ -220,6 +260,35 @@ const ManagerBookingsPage = () => {
     } catch (error: any) {
       toast.error(error.message || "Failed to cancel the booking.");
       console.error("Error cancelling booking:", error);
+    }
+  };
+
+  const openPaymentDialog = (booking: any) => {
+    setSelectedBooking(booking);
+    setPaymentMethod("cash");
+    setIsPaymentDialogOpen(true);
+  };
+
+  const handleMarkAsPaid = async () => {
+    if (!selectedBooking || !user) return;
+    
+    setIsProcessingPayment(true);
+    try {
+      const token = await user.getIdToken();
+      const result = await markBookingAsPaid(token, selectedBooking.id, paymentMethod);
+      
+      if (!result.success) {
+        throw new Error(result.error || "Failed to mark as paid");
+      }
+
+      toast.success("Booking marked as paid.");
+      setIsPaymentDialogOpen(false);
+      fetchVenueAndBookings();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update payment status.");
+      console.error("Error marking as paid:", error);
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -290,6 +359,9 @@ const ManagerBookingsPage = () => {
               <div className="block sm:hidden space-y-4">
                 {filteredBookings.map((booking) => {
                   const isHighlighted = highlightedBookingId === booking.id;
+                  const dueAmount = booking.dueAmount || 0;
+                  const isPaid = booking.paymentStatus === "full";
+                  
                   return (
                     <div 
                       key={booking.id} 
@@ -328,6 +400,19 @@ const ManagerBookingsPage = () => {
                         </div>
                       </div>
 
+                      <div className="grid grid-cols-2 gap-2 text-sm border-t border-gray-200 pt-2">
+                         <div className="flex flex-col text-muted-foreground">
+                          <span className="text-xs uppercase tracking-wider">Advance</span>
+                          <span className="text-gray-900">Rs. {booking.advanceAmount || 0}</span>
+                        </div>
+                        <div className="flex flex-col text-muted-foreground">
+                          <span className="text-xs uppercase tracking-wider">Due</span>
+                          <span className={`font-bold ${dueAmount > 0 ? "text-red-600" : "text-green-600"}`}>
+                            Rs. {dueAmount}
+                          </span>
+                        </div>
+                      </div>
+
                       <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                         <div>
                           {booking.bookingType === "physical" ? (
@@ -336,19 +421,28 @@ const ManagerBookingsPage = () => {
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">Online</Badge>
                           )}
                         </div>
-                        <div className="flex items-center gap-3">
-                          <div className="font-bold">
-                            {booking.amount ? `Rs. ${booking.amount}` : "-"}
-                          </div>
+                        <div className="flex items-center gap-2">
                           {(booking.status === "CONFIRMED" || booking.status === "confirmed") && (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              className="h-7 text-xs"
-                              onClick={() => handleCancelBooking(booking)}
-                            >
-                              Cancel
-                            </Button>
+                            <>
+                              {dueAmount > 0 && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="h-7 text-xs border-green-600 text-green-600 hover:bg-green-50"
+                                  onClick={() => openPaymentDialog(booking)}
+                                >
+                                  Mark Paid
+                                </Button>
+                              )}
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => handleCancelBooking(booking)}
+                              >
+                                Cancel
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -367,13 +461,16 @@ const ManagerBookingsPage = () => {
                       <TableHead>Date & Time</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Amount</TableHead>
+                      <TableHead>Advance</TableHead>
+                      <TableHead>Due</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredBookings.map((booking) => {
                       const isHighlighted = highlightedBookingId === booking.id;
+                      const dueAmount = booking.dueAmount || 0;
+                      
                       return (
                         <TableRow
                           key={booking.id}
@@ -414,18 +511,38 @@ const ManagerBookingsPage = () => {
                           </TableCell>
                           <TableCell>{getStatusBadge(booking.status)}</TableCell>
                           <TableCell>
-                            {booking.amount ? `Rs. ${booking.amount}` : "-"}
+                            Rs. {booking.advanceAmount || 0}
+                          </TableCell>
+                          <TableCell>
+                             <span className={`font-bold ${dueAmount > 0 ? "text-red-600" : "text-green-600"}`}>
+                                Rs. {dueAmount}
+                             </span>
                           </TableCell>
                           <TableCell className="text-right">
-                            {(booking.status === "CONFIRMED" || booking.status === "confirmed") && (
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleCancelBooking(booking)}
-                              >
-                                Cancel
-                              </Button>
-                            )}
+                            <div className="flex justify-end gap-2">
+                              {(booking.status === "CONFIRMED" || booking.status === "confirmed") && (
+                                <>
+                                  {dueAmount > 0 && (
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="h-8 border-green-600 text-green-600 hover:bg-green-50"
+                                      onClick={() => openPaymentDialog(booking)}
+                                    >
+                                      Mark Paid
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="h-8"
+                                    onClick={() => handleCancelBooking(booking)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -437,6 +554,48 @@ const ManagerBookingsPage = () => {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark Booking as Paid</DialogTitle>
+            <DialogDescription>
+              Record the payment of the due amount for {selectedBooking?.displayName}.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
+              <span className="font-medium">Due Amount</span>
+              <span className="text-xl font-bold text-red-600">Rs. {selectedBooking?.dueAmount || 0}</span>
+            </div>
+
+            <div className="space-y-3">
+              <Label>Payment Method</Label>
+              <RadioGroup value={paymentMethod} onValueChange={(v: "cash" | "online") => setPaymentMethod(v)}>
+                <div className="flex items-center space-x-2 border p-3 rounded-md cursor-pointer hover:bg-gray-50">
+                  <RadioGroupItem value="cash" id="cash" />
+                  <Label htmlFor="cash" className="cursor-pointer flex-1">Cash</Label>
+                </div>
+                <div className="flex items-center space-x-2 border p-3 rounded-md cursor-pointer hover:bg-gray-50">
+                  <RadioGroupItem value="online" id="online" />
+                  <Label htmlFor="online" className="cursor-pointer flex-1">Online (External)</Label>
+                </div>
+              </RadioGroup>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)} disabled={isProcessingPayment}>
+              Cancel
+            </Button>
+            <Button onClick={handleMarkAsPaid} disabled={isProcessingPayment}>
+              {isProcessingPayment ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirm Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
