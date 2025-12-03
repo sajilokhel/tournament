@@ -48,11 +48,17 @@ function Button({
   }) {
   const Comp = asChild ? Slot : "button"
 
+  // Ensure native <button> elements default to type="button" to avoid
+  // accidental form submissions when used as a generic clickable element.
+  // If a `type` prop is explicitly provided we preserve it. When using
+  // `asChild` the host element controls the semantics so we don't force type.
+  const { type, ...rest } = props as React.ButtonHTMLAttributes<HTMLButtonElement>
+
   return (
     <Comp
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
+      {...(asChild ? props : { type: type ?? "button", ...rest })}
     />
   )
 }
