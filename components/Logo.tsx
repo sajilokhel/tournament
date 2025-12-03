@@ -12,7 +12,7 @@ export const Logo: React.FC<{ className?: string }> = ({ className }) => {
 
         <Image
           src="/icons/logo.png"
-          alt="Fursal Logo"
+          alt="Sajilokhel Logo"
           width={40}
           height={40}
           className="w-full h-full object-contain transform group-hover:scale-105 transition-transform duration-500 ease-out"
@@ -21,7 +21,7 @@ export const Logo: React.FC<{ className?: string }> = ({ className }) => {
 
       <div className="flex flex-col justify-center -space-y-1 select-none">
         <span className="font-extrabold text-2xl tracking-tight text-gray-900 dark:text-white leading-none font-sans transition-colors">
-          Fur<span className="text-orange-500">sal</span>
+          Sajilo<span className="text-orange-500">khel</span>
         </span>
         <div className="overflow-hidden h-3 relative">
           <span className="absolute top-0 left-0 text-[0.65rem] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-[0.2em] transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 delay-75">

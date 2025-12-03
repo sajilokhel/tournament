@@ -1,4 +1,4 @@
-# Fursal - Venue Booking Platform
+# Sajilokhel - Venue Booking Platform
 
 A modern web application for discovering and booking futsal grounds with integrated payment processing and real-time availability tracking.
 

@@ -18,10 +18,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       const venue = docSnap.data();
       return {
         title: venue.name,
-        description: venue.description || `Book ${venue.name} on Fursal`,
+        description: venue.description || `Book ${venue.name} on Sajilokhel`,
         openGraph: {
           title: venue.name,
-          description: venue.description || `Book ${venue.name} on Fursal`,
+          description: venue.description || `Book ${venue.name} on Sajilokhel`,
           images: venue.images?.[0] ? [venue.images[0]] : [],
         },
       };

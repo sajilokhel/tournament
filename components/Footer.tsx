@@ -18,7 +18,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand Section */}
           <div className="space-y-4">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Fursal</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Sajilokhel</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
               Nepal's premier futsal booking platform. Book your game in seconds.
             </p>
@@ -123,8 +123,8 @@ const Footer = () => {
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                 <Mail className="w-4 h-4 flex-shrink-0" />
-                <a href="mailto:info@fursal.com" className="hover:text-orange-500 transition-colors">
-                  info@fursal.com
+                <a href="mailto:contact@sajilokhel.com" className="hover:text-orange-500 transition-colors">
+                  contact@sajilokhel.com
                 </a>
               </li>
             </ul>
@@ -134,7 +134,7 @@ const Footer = () => {
         {/* Bottom Bar */}
         <div className="mt-8 pt-6 border-t border-gray-200 dark:border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-xs text-gray-500 dark:text-gray-400 text-center sm:text-left">
-            © {year} Fursal. All rights reserved.
+            © {year} Sajilokhel. All rights reserved.
           </p>
           <div className="flex gap-6 text-xs text-gray-500 dark:text-gray-400">
             <Link href="#" className="hover:text-orange-500 transition-colors">

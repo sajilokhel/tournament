@@ -280,7 +280,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6 transition-colors">
-              How Fursal Works
+              How Sajilokhel Works
             </h2>
 
             <div className="inline-flex bg-gray-200 dark:bg-white/5 p-1 rounded-full border border-gray-300 dark:border-white/10 backdrop-blur-sm transition-colors">

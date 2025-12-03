@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/admin/', '/manager/', '/api/'],
     },
-    sitemap: 'https://fursal.com/sitemap.xml',
+    sitemap: 'https://sajilokhel.com/sitemap.xml',
   }
 }

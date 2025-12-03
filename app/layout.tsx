@@ -15,13 +15,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Fursal - Premier Futsal Booking Platform",
-    template: "%s | Fursal",
+    default: "Sajilokhel - Premier Futsal Booking Platform",
+    template: "%s | Sajilokhel",
   },
   description: "Discover and book the best futsal grounds near you. Real-time availability, secure payments, and instant confirmation.",
   keywords: ["futsal", "booking", "football", "sports", "ground", "nepal", "kathmandu", "sajilokhel"],
-  authors: [{ name: "Fursal Team" }],
-  creator: "Fursal",
+  authors: [{ name: "Sajilokhel Team" }],
+  creator: "Sajilokhel",
   manifest: "/site.webmanifest",
   icons: {
     icon: [
@@ -40,22 +40,22 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://fursal.com",
-    title: "Fursal - Venue Booking Platform (Sajilokhel)",
+    url: "https://sajilokhel.com",
+    title: "Sajilokhel - Premier Futsal Booking Platform",
     description: "Discover and book futsal grounds. Nepal's premier futsal booking platform with real-time availability and instant confirmation.",
-    siteName: "Fursal",
+    siteName: "Sajilokhel",
     images: [
       {
         url: "/openGraphImage.png",
         width: 1200,
         height: 630,
-        alt: "Fursal - Venue Booking Platform",
+        alt: "Sajilokhel - Venue Booking Platform",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Fursal - Venue Booking Platform (Sajilokhel)",
+    title: "Sajilokhel - Premier Futsal Booking Platform",
     description: "Discover and book futsal grounds. Nepal's premier futsal booking platform.",
     images: ["/openGraphImage.png"],
   },
