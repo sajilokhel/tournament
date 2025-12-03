@@ -203,10 +203,10 @@ const UserPanel = ({ venue }: UserPanelProps) => {
                   </div>
                   <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                     <div className="text-sm text-muted-foreground mb-1">Status</div>
-                    <div className="font-semibold text-lg text-green-600 flex items-center gap-1">
+                    <div className="font-semibold text-lg text-orange-600 flex items-center gap-1">
                       <span className="relative flex h-2.5 w-2.5 mr-1">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500"></span>
                       </span>
                       Open
                     </div>
@@ -239,17 +239,17 @@ const UserPanel = ({ venue }: UserPanelProps) => {
             {/* Trust Badges */}
             <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col items-center text-center p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                <Shield className="w-8 h-8 mb-3 text-green-500" />
+                <Shield className="w-8 h-8 mb-3 text-orange-500" />
                 <p className="font-semibold text-sm text-gray-900">Verified</p>
                 <p className="text-xs text-muted-foreground mt-1">Official Venue</p>
               </div>
               <div className="flex flex-col items-center text-center p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                <Clock className="w-8 h-8 mb-3 text-blue-500" />
+                <Clock className="w-8 h-8 mb-3 text-gray-500" />
                 <p className="font-semibold text-sm text-gray-900">Instant</p>
                 <p className="text-xs text-muted-foreground mt-1">Real-time Booking</p>
               </div>
               <div className="flex flex-col items-center text-center p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                <Star className="w-8 h-8 mb-3 text-yellow-500" />
+                <Star className="w-8 h-8 mb-3 text-orange-400" />
                 <p className="font-semibold text-sm text-gray-900">Top Rated</p>
                 <p className="text-xs text-muted-foreground mt-1">Community Favorite</p>
               </div>

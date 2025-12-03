@@ -80,7 +80,7 @@ const MyVenuesPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
       </div>
     );
   }
@@ -177,7 +177,7 @@ const MyVenuesPage = () => {
       <div className="flex items-center gap-2 text-sm text-gray-600">
         <button
           onClick={handleBackToList}
-          className="hover:text-green-600 transition-colors"
+          className="hover:text-orange-600 transition-colors"
         >
           My Venues
         </button>

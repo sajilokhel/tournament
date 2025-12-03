@@ -478,7 +478,7 @@ const UserBookingsPage = () => {
     switch (statusLower) {
       case "confirmed":
         return (
-          <Badge className="bg-green-500 hover:bg-green-600">
+          <Badge className="bg-orange-500 hover:bg-orange-600">
             <CheckCircle2 className="w-3 h-3 mr-1" />
             Confirmed
           </Badge>
@@ -623,7 +623,7 @@ const UserBookingsPage = () => {
         
         <div className="flex justify-between items-center mt-2">
           <span className="text-sm text-muted-foreground">Advance Paid</span>
-          <span className="text-sm font-semibold text-green-600">
+          <span className="text-sm font-semibold text-orange-600">
             Rs. {booking.advanceAmount || Math.ceil(((booking.amount || booking.price || 0) * 16.6) / 100)}
           </span>
         </div>
@@ -876,7 +876,7 @@ const UserBookingsPage = () => {
       {/* Upcoming Bookings Section */}
       <div className="mb-10">
         <div className="flex items-center gap-2 mb-4">
-          <CheckCircle2 className="w-5 h-5 text-green-600" />
+          <CheckCircle2 className="w-5 h-5 text-orange-600" />
           <h2 className="text-2xl font-bold">Upcoming Bookings</h2>
         </div>
         {confirmedUpcoming.length > 0 ? (

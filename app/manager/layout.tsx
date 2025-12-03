@@ -23,7 +23,7 @@ const ManagerLayout = ({ children }: ManagerLayoutProps) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
       </div>
     );
   }
@@ -129,7 +129,7 @@ const ManagerLayout = ({ children }: ManagerLayoutProps) => {
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
                     isActive
-                      ? "bg-green-50 text-green-600 font-medium"
+                      ? "bg-orange-50 text-orange-600 font-medium"
                       : "text-gray-700 hover:bg-gray-100"
                   )}
                 >
@@ -146,8 +146,8 @@ const ManagerLayout = ({ children }: ManagerLayoutProps) => {
               {/* User Info */}
               <Link href="/manager/profile">
                 <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                    <User className="h-4 w-4 text-green-600" />
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+                    <User className="h-4 w-4 text-orange-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">

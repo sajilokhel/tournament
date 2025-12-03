@@ -38,15 +38,15 @@ const Header = () => {
       path === "/manager" ? pathname?.startsWith("/manager") : pathname === path;
 
     return isActive
-      ? "text-green-500 font-medium"
-      : "text-slate-600 dark:text-slate-300 hover:text-green-500 transition-colors";
+      ? "text-orange-500 font-medium"
+      : "text-gray-600 dark:text-gray-300 hover:text-orange-500 transition-colors";
   };
 
   return (
     <nav
       className={`fixed top-0 w-full z-50 transition-all duration-500 ${
         scrolled
-          ? "bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-200 dark:border-white/5 py-4 shadow-sm dark:shadow-none"
+          ? "bg-white/80 dark:bg-black/80 backdrop-blur-lg border-b border-gray-200 dark:border-white/5 py-4 shadow-sm dark:shadow-none"
           : "bg-transparent py-6"
       }`}
     >
@@ -83,14 +83,14 @@ const Header = () => {
         </div>
 
         <div className="hidden md:flex items-center gap-4">
-          <div className="h-6 w-px bg-slate-200 dark:bg-white/10"></div>
+          <div className="h-6 w-px bg-gray-200 dark:bg-white/10"></div>
           <Auth />
         </div>
 
         {/* Mobile Toggle */}
         <div className="flex items-center gap-4 md:hidden">
           <button
-            className="text-slate-900 dark:text-white"
+            className="text-gray-900 dark:text-white"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle menu"
           >
@@ -117,7 +117,7 @@ const Header = () => {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-white/10 shadow-2xl max-h-[calc(100vh-80px)] overflow-y-auto">
+        <div className="md:hidden absolute top-full left-0 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-white/10 shadow-2xl max-h-[calc(100vh-80px)] overflow-y-auto">
           <div className="p-6 flex flex-col gap-4">
             <Link href="/" className={`text-lg font-medium py-2 ${getLinkClass("/")}`}>
               Home
@@ -144,7 +144,7 @@ const Header = () => {
                 )}
               </>
             )}
-            <div className="border-t border-slate-200 dark:border-white/10 pt-4 mt-2">
+            <div className="border-t border-gray-200 dark:border-white/10 pt-4 mt-2">
               <Auth />
             </div>
           </div>

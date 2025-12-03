@@ -103,18 +103,18 @@ const VenueHeader = ({
 
       {/* Price Section - Product Page Style */}
       <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
-        <div className="flex items-baseline gap-3 mb-2">
+        <div className="flex items-center gap-3 mb-2">
           <span className="text-4xl font-bold text-gray-900">
             Rs. {pricePerHour.toLocaleString()}
           </span>
           <span className="text-lg text-gray-600 font-medium">/hour</span>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100">
+          <Badge variant="secondary" className="bg-orange-100 text-orange-700 hover:bg-orange-100">
             <Clock className="w-3 h-3 mr-1" />
             Available Now
           </Badge>
-          <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100">
+          <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-100">
             Instant Booking
           </Badge>
         </div>

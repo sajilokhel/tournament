@@ -65,9 +65,9 @@ export default function AdminLayout({
   return (
     <AdminGuard>
       <SidebarProvider defaultOpen>
-        <div className="min-h-screen flex text-slate-900 dark:text-slate-100 w-screen">
+        <div className="min-h-screen flex text-gray-900 dark:text-gray-100 w-screen">
           {/* Sidebar (visible on lg+) */}
-          <aside className="hidden lg:flex lg:flex-col border-r border-slate-200 dark:border-slate-800 bg-transparent">
+          <aside className="hidden lg:flex lg:flex-col border-r border-gray-200 dark:border-gray-800 bg-transparent">
             <Sidebar>
               <SidebarHeader>
                 <div className="px-4 py-5">
@@ -90,7 +90,7 @@ export default function AdminLayout({
                               className={`flex items-center gap-3 px-4 py-2 rounded-md transition-colors text-sm ${
                                 active
                                   ? "bg-primary/10 text-primary font-medium"
-                                  : "hover:bg-slate-100 dark:hover:bg-slate-800"
+                                  : "hover:bg-gray-100 dark:hover:bg-gray-800"
                               }`}
                               aria-current={active ? "page" : undefined}
                             >
@@ -121,7 +121,7 @@ export default function AdminLayout({
           {/* Main content area */}
           <main className="flex-1 min-h-screen w-full">
             {/* Top bar for mobile and small screens */}
-            <div className="lg:hidden border-b border-slate-200 dark:border-slate-800 bg-transparent">
+            <div className="lg:hidden border-b border-gray-200 dark:border-gray-800 bg-transparent">
               <div className="max-w-7xl px-4 py-3 flex items-center justify-between">
                 <Link
                   href="/admin/overview"

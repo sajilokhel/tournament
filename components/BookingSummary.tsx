@@ -73,7 +73,7 @@ export function BookingSummary({
           
           <div className="flex justify-between items-center">
             <span className="text-sm text-muted-foreground">Advance Payment</span>
-            <span className="text-sm font-semibold text-green-600">
+            <span className="text-sm font-semibold text-orange-600">
               Rs. {Math.ceil((price * 16.6) / 100)}
             </span>
           </div>

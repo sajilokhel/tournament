@@ -55,7 +55,7 @@ const ManagerDashboardPage = () => {
     switch (status) {
       case "confirmed":
       case "CONFIRMED":
-        return <Badge className="bg-green-500">Confirmed</Badge>;
+        return <Badge className="bg-orange-500">Confirmed</Badge>;
       case "pending_payment":
       case "PENDING_PAYMENT":
         return <Badge variant="secondary">Pending</Badge>;
@@ -248,7 +248,7 @@ const ManagerDashboardPage = () => {
                   </div>
                   <div className="border-t pt-2 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-0">
                     <span className="text-xs sm:text-sm font-medium">Net Revenue:</span>
-                    <span className="text-base sm:text-2xl font-bold text-green-600">Rs. {stats.netRevenue.toLocaleString()}</span>
+                    <span className="text-base sm:text-2xl font-bold text-orange-600">Rs. {stats.netRevenue.toLocaleString()}</span>
                   </div>
                 </>
               )}

@@ -261,7 +261,7 @@ export default function AdvancedModePage() {
         </div>
 
         {/* Right Content: Data View */}
-        <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-900/50">
+        <div className="flex-1 flex flex-col min-w-0 bg-gray-50 dark:bg-black/50">
           <div className="p-3 border-b bg-muted/30 font-medium text-sm flex items-center justify-between">
             <span>Data View</span>
             {isDocument && docData && (

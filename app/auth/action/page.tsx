@@ -187,8 +187,8 @@ function AuthActionContent() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <div className="mx-auto bg-green-100 p-3 rounded-full w-fit mb-2">
-              <Key className="h-6 w-6 text-green-600" />
+            <div className="mx-auto bg-orange-100 p-3 rounded-full w-fit mb-2">
+              <Key className="h-6 w-6 text-orange-600" />
             </div>
             <CardTitle className="text-center">Reset Password</CardTitle>
             <CardDescription className="text-center">

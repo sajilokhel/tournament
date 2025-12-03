@@ -377,7 +377,7 @@ export default function ManagerPaymentsPage() {
               <p className="text-xs text-muted-foreground">
                 {stats.commissionPercentage}% of Rs. {stats.totalIncome.toLocaleString()}
               </p>
-              <p className="text-xs text-green-600 mt-2 font-medium">
+              <p className="text-xs text-orange-600 mt-2 font-medium">
                 Net Income: Rs. {stats.netIncome.toLocaleString()}
               </p>
             </CardContent>
@@ -403,7 +403,7 @@ export default function ManagerPaymentsPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
               <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-500" />
+              <CheckCircle className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-0">
               <div className="text-2xl font-bold">

@@ -296,7 +296,7 @@ const ManagerBookingsPage = () => {
     switch (status) {
       case "confirmed":
       case "CONFIRMED":
-        return <Badge className="bg-green-500">Confirmed</Badge>;
+        return <Badge className="bg-orange-500">Confirmed</Badge>;
       case "pending_payment":
       case "PENDING_PAYMENT":
         return <Badge variant="secondary">Pending</Badge>;
@@ -407,7 +407,7 @@ const ManagerBookingsPage = () => {
                         </div>
                         <div className="flex flex-col text-muted-foreground">
                           <span className="text-xs uppercase tracking-wider">Due</span>
-                          <span className={`font-bold ${dueAmount > 0 ? "text-red-600" : "text-green-600"}`}>
+                          <span className={`font-bold ${dueAmount > 0 ? "text-red-600" : "text-orange-600"}`}>
                             Rs. {dueAmount}
                           </span>
                         </div>
@@ -428,7 +428,7 @@ const ManagerBookingsPage = () => {
                                 <Button 
                                   size="sm" 
                                   variant="outline" 
-                                  className="h-7 text-xs border-green-600 text-green-600 hover:bg-green-50"
+                                  className="h-7 text-xs border-orange-600 text-orange-600 hover:bg-orange-50"
                                   onClick={() => openPaymentDialog(booking)}
                                 >
                                   Mark Paid
@@ -514,7 +514,7 @@ const ManagerBookingsPage = () => {
                             Rs. {booking.advanceAmount || 0}
                           </TableCell>
                           <TableCell>
-                             <span className={`font-bold ${dueAmount > 0 ? "text-red-600" : "text-green-600"}`}>
+                             <span className={`font-bold ${dueAmount > 0 ? "text-red-600" : "text-orange-600"}`}>
                                 Rs. {dueAmount}
                              </span>
                           </TableCell>
@@ -526,7 +526,7 @@ const ManagerBookingsPage = () => {
                                     <Button 
                                       size="sm" 
                                       variant="outline" 
-                                      className="h-8 border-green-600 text-green-600 hover:bg-green-50"
+                                      className="h-8 border-orange-600 text-orange-600 hover:bg-orange-50"
                                       onClick={() => openPaymentDialog(booking)}
                                     >
                                       Mark Paid

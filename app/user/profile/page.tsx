@@ -108,7 +108,7 @@ export default function ProfilePage() {
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen pt-20">
-        <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
       </div>
     );
   }
@@ -130,7 +130,7 @@ export default function ProfilePage() {
         <div className="flex items-center space-x-4 mb-8">
           <Avatar className="h-20 w-20 border-4 border-white shadow-lg">
             <AvatarImage src={user.photoURL || ""} alt={displayName} />
-            <AvatarFallback className="text-2xl bg-green-100 text-green-700">
+            <AvatarFallback className="text-2xl bg-orange-100 text-orange-700">
               {displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase()}
             </AvatarFallback>
           </Avatar>
@@ -188,7 +188,7 @@ export default function ProfilePage() {
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <Shield className="h-5 w-5 text-green-600" />
+                    <Shield className="h-5 w-5 text-orange-600" />
                     <div>
                       <p className="text-sm font-medium text-gray-900">Account Role</p>
                       <p className="text-xs text-gray-500 capitalize">{userData?.role || "User"}</p>

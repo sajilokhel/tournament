@@ -106,7 +106,7 @@ export default function ManagerProfilePage() {
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
       </div>
     );
   }
@@ -143,9 +143,9 @@ export default function ManagerProfilePage() {
         {/* Profile Summary Card */}
         <Card className="md:col-span-1 h-fit">
           <CardContent className="pt-6 text-center space-y-4">
-            <Avatar className="h-24 w-24 mx-auto border-4 border-green-50">
+            <Avatar className="h-24 w-24 mx-auto border-4 border-orange-50">
               <AvatarImage src={user.photoURL || ""} />
-              <AvatarFallback className="text-3xl bg-green-100 text-green-700">
+              <AvatarFallback className="text-3xl bg-orange-100 text-orange-700">
                 {user.email?.charAt(0)?.toUpperCase()}
               </AvatarFallback>
             </Avatar>
@@ -156,7 +156,7 @@ export default function ManagerProfilePage() {
             <div className="pt-4 border-t text-left space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-500">Role</span>
-                <span className="font-medium capitalize bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs">
+                <span className="font-medium capitalize bg-orange-100 text-orange-800 px-2 py-0.5 rounded text-xs">
                   {userData?.role || "Manager"}
                 </span>
               </div>
