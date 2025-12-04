@@ -1,89 +1,80 @@
 import { NextRequest, NextResponse } from "next/server";
-import admin from "firebase-admin";
-import { db, auth, isAdminInitialized } from "@/lib/firebase-admin";
+import { createBooking } from "@/app/actions/bookings";
 
+/**
+ * POST /api/bookings
+ *
+ * Thin API wrapper around server action `createBooking`.
+ * - Expects Authorization: Bearer <idToken>
+ * - Body: { venueId, date, startTime, endTime?, amount }
+ *
+ * The server action will verify the token and perform transactional
+ * booking & hold writes.
+ */
 export async function POST(request: NextRequest) {
-  if (!isAdminInitialized()) {
-    return NextResponse.json({ error: "Server not configured" }, { status: 500 });
-  }
-
   try {
-    const body = await request.json();
-    const { venueId, slotId } = body;
-
-    if (!venueId || !slotId) {
-      return NextResponse.json({ error: "Missing required fields: venueId, slotId" }, { status: 400 });
-    }
-
-    // Authenticate user via Bearer token (Firebase ID token)
     const authHeader = request.headers.get("authorization") || "";
-    const match = authHeader.match(/^Bearer (.*)$/);
-    if (!match) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const idToken = match[1];
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
 
-    let decoded: admin.auth.DecodedIdToken;
+    if (!token) {
+      return NextResponse.json(
+        { error: "Missing Authorization token" },
+        { status: 401 },
+      );
+    }
+
+    let body: any;
     try {
-      decoded = await auth.verifyIdToken(idToken);
+      body = await request.json();
     } catch (err) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const uid = decoded.uid;
+    const { venueId, date, startTime, endTime, amount } = body || {};
 
-    // Run transaction: ensure slot is available, create booking, update slot
-    const result = await db.runTransaction(async (tx) => {
-      const slotRef = db.collection("slots").doc(slotId);
-      const slotSnap = await tx.get(slotRef);
-      if (!slotSnap.exists) {
-        throw { status: 404, message: "Slot not found" };
-      }
-
-      const slotData = slotSnap.data() as any;
-      const status = (slotData.status || "").toString().toLowerCase();
-      if (status && status !== "available") {
-        throw { status: 409, message: "Slot is not available" };
-      }
-
-      // Get venue price if available
-      const venueRef = db.collection("venues").doc(venueId);
-      const venueSnap = await tx.get(venueRef);
-      const pricePerHour = venueSnap.exists ? (venueSnap.data()?.pricePerHour || 0) : 0;
-
-      const date = slotData.date || null;
-      const startTime = slotData.startTime || null;
-      const endTime = slotData.endTime || null;
-      const timeSlot = date && startTime
-        ? `${date} ${startTime} - ${endTime ?? ""}`
-        : null;
-
-      const bookingRef = db.collection("bookings").doc();
-      const bookingData: any = {
-        venueId,
-        userId: uid,
-        slotId,
-        timeSlot,
-        status: "pending",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        amount: pricePerHour,
-      };
-
-      tx.set(bookingRef, bookingData);
-
-      tx.update(slotRef, {
-        status: "booked",
-        bookingId: bookingRef.id,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      return { bookingId: bookingRef.id };
-    });
-
-    return NextResponse.json({ ok: true, ...result });
-  } catch (err: any) {
-    console.error("/api/bookings error:", err);
-    if (err && err.status) {
-      return NextResponse.json({ error: err.message || "Failed" }, { status: err.status });
+    // Basic validation
+    if (
+      !venueId ||
+      !date ||
+      !startTime ||
+      amount === undefined ||
+      amount === null
+    ) {
+      return NextResponse.json(
+        { error: "Missing required fields: venueId, date, startTime, amount" },
+        { status: 400 },
+      );
     }
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+
+    // Call the existing server action. It will verify the token internally.
+    const result = await createBooking(
+      token,
+      venueId,
+      date,
+      startTime,
+      endTime,
+      amount,
+    );
+
+    if (result?.success) {
+      return NextResponse.json(
+        { success: true, bookingId: result.bookingId },
+        { status: 201 },
+      );
+    }
+
+    // If the action returned an error message, forward it with 400.
+    return NextResponse.json(
+      { success: false, error: result?.error || "Failed to create booking" },
+      { status: 400 },
+    );
+  } catch (error: any) {
+    console.error("Unhandled error in bookings API:", error);
+    return NextResponse.json(
+      { error: error?.message || "Internal server error" },
+      { status: 500 },
+    );
   }
 }

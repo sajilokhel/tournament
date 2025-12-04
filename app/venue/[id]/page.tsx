@@ -9,11 +9,11 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  
+
   try {
     const docRef = doc(db, "venues", id);
     const docSnap = await getDoc(docRef);
-    
+
     if (docSnap.exists()) {
       const venue = docSnap.data();
       return {

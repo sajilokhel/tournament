@@ -1,316 +1,783 @@
-# Backend API Documentation
+# Backend API Reference (Complete)
 
-This document outlines the API endpoints and Server Actions available in the application.
+This document is a detailed, machine-friendly and developer-oriented reference for all server API endpoints implemented in this repository. Each endpoint includes:
 
-## API Routes
+- Method & path
+- Auth / required headers
+- Query parameters (if any)
+- Request body schema (JSON)
+- All expected responses: success and common error responses, with examples
+- Implementation file for quick navigation
 
-### Grounds
+Notes
+- Authentication: Most write endpoints require a Firebase ID token supplied as `Authorization: Bearer <idToken>`. Tokens are validated server-side via the Admin SDK.
+- Role checks: Manager/Admin privileges are derived from `users/{uid}` documents (role fields).
+- Secrets & env vars:
+  - `ESEWA_SECRET_KEY` — HMAC secret for eSewa signatures & verification
+  - `ESEWA_MERCHANT_CODE` — merchant/product code used for eSewa
+  - `INVOICE_QR_SECRET` — AES key/secret used to encrypt/decrypt invoice QR payloads
+- Standard error shape: `{ "error": "message", "details": {...} }`
+- Timestamp fields use Firestore server timestamps in implementations.
+- Implementation files are listed as `app/api/.../route.ts` or similar.
 
-#### `GET /api/grounds`
-Fetches the list of available grounds from the static data file.
-- **Response**: `Array<Ground>`
-  ```json
-  [
-    {
-      "id": 1,
-      "name": "Futsal Arena",
-      "location": "Kathmandu",
-      "price": 1500,
-      "image": "/images/ground1.jpg"
-    }
-  ]
-  ```
-- **Note**: This endpoint reads from `data/grounds.json`.
+--------------------------------------------------------------------------------
+Table of contents
+1. Bookings
+  - Create booking (POST /api/bookings)
+  - Cancel booking (POST /api/bookings/[id]/cancel)
+2. Invoices & QR
+  - Get invoice (GET /api/invoices/[id])
+  - Verify invoice / QR payload (POST /api/invoices/verify)
+3. Payment (eSewa)
+  - Initiate payment (POST /api/payment/initiate)
+  - Generate signature (POST /api/payment/generate-signature)
+  - Verify payment (POST /api/payment/verify)
+4. Slots
+  - Generate slots (POST /api/slots/generate)
+  - Hold slot (POST /api/slots/hold)
+  - Reserve / Confirm slot (POST /api/slots/reserve)
+  - Unbook / Release (POST /api/slots/unbook)
+5. Venues
+  - List venues (GET /api/venues)
+  - Create / Upsert venue (POST /api/venues)
+  - Add review (POST /api/venues/[id]/reviews)
+6. Users
+  - Upsert user (POST /api/users/upsert)
+7. Uploads (UploadThing)
+  - Upload webhook endpoint (POST /api/uploadthing)
+8. Maintenance / Cron
+  - Run maintenance (GET /api/cron)
+9. Legacy local mock
+  - Grounds (GET /api/grounds, POST /api/grounds)
+--------------------------------------------------------------------------------
 
-#### `POST /api/grounds`
-Adds a new ground to the static data file.
-- **Body**: `Ground` object
-  ```json
-  {
-    "name": "New Ground",
-    "location": "Lalitpur",
-    "price": 2000,
-    "image": "url"
+1) BOOKINGS
+
+A. Create booking
+- Method: POST
+- Path: `/api/bookings`
+- Auth: Required — Firebase ID token (`Authorization: Bearer <idToken>`)
+- Implementation: `app/api/bookings/route.ts`
+
+Headers:
+- `Authorization: Bearer <idToken>`
+- `Content-Type: application/json`
+
+Request body (JSON):
+```json
+{
+  "venueId": "string (required)",
+  "slotId": "string (required)",
+  // optional: client-provided metadata
+  "metadata": { "teamName": "string", "notes": "string" }
+}
+```
+
+Success responses:
+- 200 / 201 (created)
+```json
+{
+  "ok": true,
+  "bookingId": "booking_generated_id"
+}
+```
+
+Common error responses:
+- 400 Bad Request — missing required fields
+```json
+{ "error": "Missing required fields: venueId, slotId" }
+```
+- 401 Unauthorized — missing/invalid token
+```json
+{ "error": "Unauthorized" }
+```
+- 404 Not Found — slot not found
+```json
+{ "error": "Slot not found" }
+```
+- 409 Conflict — slot not available
+```json
+{ "error": "Slot is not available" }
+```
+- 500 Internal Server Error — transaction failure
+
+Notes:
+- Implementation performs a Firestore transaction to ensure atomicity: checks slot availability, creates `bookings/{id}`, updates slot/venue state (`booked` + `bookingId`).
+- The booking doc created includes `status` = `pending` or `pending_payment` depending on flow conventions.
+
+B. Cancel booking
+- Method: POST
+- Path: `/api/bookings/[id]/cancel`
+- Auth: Required — Firebase ID token
+- Implementation: `app/api/bookings/[id]/cancel/route.ts` (or related file under `app/api/bookings/[id]/`)
+
+Headers:
+- `Authorization: Bearer <idToken>`
+- `Content-Type: application/json`
+
+Request body (JSON):
+```json
+{
+  "reason": "string (optional)",
+  "userId": "string (optional) - server may derive from token"
+}
+```
+
+Success:
+- 200
+```json
+{ "success": true, "bookingId": "booking_xyz", "status": "cancelled" }
+```
+
+Errors:
+- 401 Unauthorized
+- 403 Forbidden — user not owner and not admin/manager
+```json
+{ "error": "Forbidden" }
+```
+- 404 Not Found — booking not found
+- 409 Conflict — booking cannot be canceled (outside cancellation window)
+- 500 Internal Server Error
+
+Notes:
+- Cancel may also release the slot in `venueSlots` or `slots` collection.
+- Refund logic (if payment already captured) is NOT part of this endpoint unless implemented — check payment logs and reconcile.
+
+--------------------------------------------------------------------------------
+2) INVOICES & QR
+
+A. Get invoice (PDF)
+- Method: GET
+- Path: `/api/invoices/[id]`
+- Auth: Required — owner or manager/admin
+- Implementation: `app/api/invoices/[id]/route.ts`
+
+Headers:
+- `Authorization: Bearer <idToken>`
+- Accept: `application/pdf` or `application/json` (depends on implementation)
+
+Query:
+- `download=true` (optional) to set Content-Disposition
+
+Success:
+- 200 (PDF binary)
+  - Content-Type: `application/pdf`
+  - Body: PDF bytes
+
+Or if returning JSON metadata:
+- 200
+```json
+{
+  "ok": true,
+  "bookingId": "booking_xyz",
+  "pdfUrl": "/path/to/generated.pdf"
+}
+```
+
+Errors:
+- 401 Unauthorized
+- 403 Forbidden — not owner and not manager/admin
+- 404 Not Found — booking/invoice not found
+- 500 Internal Server Error
+
+B. Verify invoice / QR payload
+- Method: POST
+- Path: `/api/invoices/verify`
+- Auth: Required — Firebase ID token
+- Implementation: `app/api/invoices/verify/route.ts`
+
+Headers:
+- `Authorization: Bearer <idToken>`
+- `Content-Type: application/json`
+
+Request body (JSON):
+```json
+{
+  "qr": "base64 string or data URL of encrypted payload" // required
+}
+```
+
+Behavior:
+- Endpoint decrypts AES-256-GCM encrypted payload (iv || tag || ciphertext) using `INVOICE_QR_SECRET`.
+- Expected decrypted structure: `{ "b": "<bookingId>", "t": 1670000000000 }`
+- Checks caller's authorization: caller must be admin or manager of the venue (`venue.managedBy` contains caller uid).
+- Optionally checks freshness using `t` timestamp (default TTL 24h).
+
+Success:
+- 200
+```json
+{
+  "ok": true,
+  "stale": false,
+  "booking": { /* booking doc */ },
+  "venue": { /* venue doc */ },
+  "user": { /* booking owner user doc */ }
+}
+```
+
+Errors:
+- 400 Bad Request — missing `qr` or invalid payload
+```json
+{ "error": "Missing qr payload" }
+```
+- 401 Unauthorized — missing/invalid token
+- 403 Forbidden — caller not authorized for this venue
+- 404 Not Found — booking or venue not found
+- 500 Internal Server Error — decryption errors or server misconfiguration (e.g., missing `INVOICE_QR_SECRET`)
+
+Notes:
+- Protect `INVOICE_QR_SECRET` in environment; do not leak decrypted payloads in logs.
+- Implementation file performs token verification via Firebase Admin and role checks.
+
+--------------------------------------------------------------------------------
+3) PAYMENT (eSewa)
+
+Overview:
+- Flow uses three endpoints: `initiate` (assigns txn uuid & returns signature/params), `generate-signature` (helper HMAC generator), and `verify` (server calls eSewa verify endpoint and reconciles).
+- `ESEWA_SECRET_KEY` and `ESEWA_MERCHANT_CODE` must be set.
+- Transaction UUID format used by this code: `<bookingId>_<timestamp>` (example: `booking_abc_1700000000000`). The verify logic contains fallbacks to resolve booking by prefix or by `esewaTransactionUuid` field.
+
+A. Initiate payment
+- Method: POST
+- Path: `/api/payment/initiate`
+- Auth: Required
+- Implementation: `app/api/payment/initiate/route.ts`
+
+Headers:
+- `Authorization: Bearer <idToken>`
+- `Content-Type: application/json`
+
+Request body:
+```json
+{
+  "bookingId": "string (required)",
+  "amount": 600,          // optional: paid amount
+  "totalAmount": 600      // required: amount used to sign/verify
+}
+```
+
+Behavior:
+- Validates booking exists.
+- Generates `transactionUuid = "<bookingId>_<Date.now()>"`.
+- Atomically updates booking doc with `esewaTransactionUuid` and `esewaInitiatedAt`.
+- If `venueSlots` exist, also attaches `esewaTransactionUuid` to the held entry in `venueSlots` within a transaction.
+- Generates HMAC signature (same algorithm as generate-signature).
+- Returns `transactionUuid`, `signature`, and paymentParams for the client.
+
+Success:
+- 200
+```json
+{
+  "success": true,
+  "transactionUuid": "booking_abc_1700000000000",
+  "signature": "base64-signature",
+  "paymentParams": {
+    "amount": "600",
+    "totalAmount": "600",
+    "transactionUuid": "booking_abc_1700000000000",
+    "productCode": "ESEWA_MERCHANT_CODE",
+    "successUrl": "https://.../payment-success",
+    "failureUrl": "https://.../payment-failure"
   }
-  ```
-- **Response**:
-  ```json
-  {
-    "message": "Ground added successfully"
+}
+```
+
+Errors:
+- 400 Bad Request — missing required fields
+- 401 Unauthorized — missing / invalid token
+- 404 Booking not found
+- 500 Payment gateway not configured (missing env var) or DB transaction failure
+
+B. Generate signature (server-side helper)
+- Method: POST
+- Path: `/api/payment/generate-signature`
+- Auth: Should be protected (server-only). Implementation expects server usage.
+- Implementation: `app/api/payment/generate-signature/route.ts`
+
+Headers:
+- `Content-Type: application/json`
+
+Request body:
+```json
+{
+  "totalAmount": "600",             // required (string or number)
+  "transactionUuid": "string",      // required
+  "productCode": "string"           // required (usually ESEWA_MERCHANT_CODE)
+}
+```
+
+Success:
+- 200
+```json
+{
+  "signature": "base64-hmac",
+  "message": "total_amount=600,transaction_uuid=...,product_code=..."
+}
+```
+
+Errors:
+- 400 Missing params
+- 500 Missing `ESEWA_SECRET_KEY` or generation failure
+
+C. Verify payment
+- Method: POST
+- Path: `/api/payment/verify`
+- Auth: Required
+- Implementation: `app/api/payment/verify/route.ts`
+
+Headers:
+- `Authorization: Bearer <idToken>` (required by this implementation)
+- `Content-Type: application/json`
+
+Request body:
+```json
+{
+  "transactionUuid": "string (required)",
+  "productCode": "string (required)",
+  "totalAmount": 600
+}
+```
+
+Behavior:
+- Generates verification URL and calls eSewa's verify endpoint (GET).
+- Parses eSewa response: expected shape includes `status`, `transaction_uuid`, `product_code`, `total_amount`, `ref_id`.
+- If `status === 'COMPLETE'`:
+  - Resolve booking (by doc id, by prefix, or by `esewaTransactionUuid` field).
+  - If booking found and not already confirmed:
+    - Call `bookSlot` helper to convert held slot -> confirmed.
+    - Update booking doc: `status: confirmed`, `paymentTimestamp`, `esewaTransactionCode/ref` fields, `verifiedAt`.
+    - Log payment via `lib/paymentLogger`.
+    - Return success with booking data.
+  - If booking not found:
+    - Log payment for manual reconciliation and return success (to avoid losing payment).
+  - If DB update fails after eSewa confirms: log payment and return success with `bookingUpdateFailed: true`.
+- If non-terminal (`PENDING`, `INITIATED`, `NOT_FOUND` etc.):
+  - Return `verified: false` and retain booking as `pending_payment`.
+- Idempotent: if booking already `confirmed`, it will log payment and return `alreadyConfirmed: true`.
+
+Success examples:
+- Payment verified and booking confirmed:
+```json
+{
+  "verified": true,
+  "status": "COMPLETE",
+  "transactionUuid": "booking_abc_1700000000000",
+  "refId": "ES12345",
+  "totalAmount": "600",
+  "productCode": "EPAYTEST",
+  "bookingConfirmed": true,
+  "bookingData": {
+    "bookingId": "booking_abc",
+    "venueId": "venue_abc",
+    "userId": "uid_123",
+    "date": "2025-01-20",
+    "startTime": "18:00",
+    "endTime": "19:00",
+    "amount": 600,
+    "bookingType": "website"
   }
-  ```
+}
+```
 
-### Payment (eSewa)
+- Payment verified but booking missing (logged for reconciliation):
+```json
+{
+  "verified": true,
+  "status": "COMPLETE",
+  "bookingFound": false,
+  "message": "Payment verified but booking document not found; payment logged for manual reconciliation"
+}
+```
 
-#### `POST /api/payment/verify`
-Verifies a transaction with eSewa.
-- **Body**:
-  ```json
+Non-terminal response:
+```json
+{
+  "verified": false,
+  "status": "PENDING",
+  "bookingFound": true,
+  "message": "Payment not completed; booking retained (no automatic deletion)."
+}
+```
+
+Error responses:
+- 400 Bad Request — missing required parameters
+- 401 Unauthorized — missing/invalid token
+- 500 Internal Server Error — network to eSewa failed or DB errors (but handler attempts to log payments where appropriate)
+
+Notes:
+- To prevent lost payments, the endpoint returns success (200) to eSewa when verification was received even if DB updates failed — payment is logged for manual intervention.
+- The code attempts multiple strategies to find the booking document:
+  1. `bookings/{transactionUuid}`
+  2. If `transactionUuid` contains underscore: `bookings/{prefixBeforeLastUnderscore}`
+  3. Query `bookings` where `esewaTransactionUuid` equals `transactionUuid`
+- Log audit entries in `lib/paymentLogger` for every payment outcome.
+
+--------------------------------------------------------------------------------
+4) SLOTS
+
+A. Generate slots
+- Method: POST
+- Path: `/api/slots/generate`
+- Auth: Manager or Admin
+- Implementation: `app/api/slots/generate/route.ts`
+
+Headers:
+- `Authorization: Bearer <idToken>`
+- `Content-Type: application/json`
+
+Request body (example):
+```json
+{
+  "venueId": "string (required)",
+  "startDate": "YYYY-MM-DD",
+  "endDate": "YYYY-MM-DD",
+  "openTime": "08:00",
+  "closeTime": "22:00",
+  "slotDurationMinutes": 60,
+  "daysOfWeek": [1,2,3,4,5,6,7] // optional
+}
+```
+
+Success:
+- 200
+```json
+{ "ok": true, "slotsCreated": 120 }
+```
+
+Errors:
+- 400 Missing params
+- 403 Forbidden (caller not manager)
+- 500 DB/transaction errors
+
+Notes:
+- Use to bulk-create slots for a venue. Implementation may write to `venueSlots` or `slots` collection.
+
+B. Hold slot
+- Method: POST
+- Path: `/api/slots/hold`
+- Auth: Required
+- Implementation: `app/api/slots/hold/route.ts`
+
+Headers:
+- `Authorization: Bearer <idToken>`
+- `Content-Type: application/json`
+
+Request body:
+```json
+{
+  "slotId": "string (required)",
+  "venueId": "string (required)",
+  "holdDurationMinutes": 5
+}
+```
+
+Success:
+- 200
+```json
+{
+  "ok": true,
+  "slotId": "slot_xyz",
+  "holdExpiresAt": 1700000000000
+}
+```
+
+Errors:
+- 400 Missing params
+- 401 Unauthorized
+- 404 Slot not found
+- 409 Conflict — slot is already held / booked
+- 500 Internal Server Error
+
+Notes:
+- Holds are short-lived; implementation stores hold in `venueSlots.held` or slot doc with expiry.
+
+C. Reserve / Confirm slot
+- Method: POST
+- Path: `/api/slots/reserve`
+- Auth: Required
+- Implementation: `app/api/slots/reserve/route.ts`
+
+Request body:
+```json
+{
+  "slotId": "string (required)",
+  "bookingId": "string (required)"
+}
+```
+
+Success:
+- 200
+```json
+{ "ok": true, "reserved": true, "slotId": "slot_xyz" }
+```
+
+Errors:
+- 400/401/403/404/409/500 similar categories
+
+D. Unbook / Release
+- Method: POST
+- Path: `/api/slots/unbook`
+- Auth: Manager or Admin
+- Implementation: `app/api/slots/unbook/route.ts`
+
+Request body:
+```json
+{
+  "slotId": "string (required)",
+  "reason": "optional string"
+}
+```
+
+Success:
+- 200
+```json
+{ "ok": true, "slotId": "slot_xyz", "released": true }
+```
+
+Errors:
+- 403 Forbidden if caller not manager/admin
+- 404 Slot not found
+
+--------------------------------------------------------------------------------
+5) VENUES
+
+A. List venues
+- Method: GET
+- Path: `/api/venues`
+- Auth: Public
+- Implementation: `app/api/venues/route.ts`
+
+Query params:
+- Pagination / filters may exist (check implementation)
+
+Success:
+- 200
+```json
+[
   {
-    "transactionUuid": "string (Required)",
-    "productCode": "string (Required)",
-    # Backend API Documentation
+    "id": "venue_1",
+    "name": "Futsal Arena",
+    "location": "Kathmandu",
+    "pricePerHour": 1500,
+    "images": ["/images/ground1.jpg"],
+    "managedBy": "uid_manager"
+  }
+]
+```
 
-    This document provides a concise, developer-friendly reference for the server APIs and server-side actions implemented in this repository.
+Errors:
+- 500 Internal Server Error
 
-    Goals:
-    - Describe authentication and common behaviors used by endpoints.
-    - Provide per-endpoint details (method, path, auth, purpose, request/response examples).
-    - Point to implementation locations for faster navigation.
+B. Create / Upsert venue
+- Method: POST
+- Path: `/api/venues`
+- Auth: Manager or Admin
+- Implementation: `app/api/venues/route.ts` and `app/api/venues/[id]/route.ts`
 
-    If you'd like, I can also generate an OpenAPI (Swagger) spec from this documentation.
+Request body (example):
+```json
+{
+  "name": "Venue Name",
+  "location": "string",
+  "pricePerHour": 1500,
+  "managedBy": "uid_manager",
+  "metadata": { "phone": "string" }
+}
+```
 
-    --
+Success:
+- 200 / 201
+```json
+{ "ok": true, "venueId": "venue_abc" }
+```
 
-    ## Auth & Common Behavior
+Errors:
+- 400, 401, 403, 500 as applicable
 
-    - **Authentication**: Most endpoints require a Firebase ID token presented as `Authorization: Bearer <idToken>`.
-    - **Admin SDK / Server Privileges**: Endpoints that perform privileged operations (create or modify bookings/slots/venues across users) use the Firebase Admin SDK via `lib/firebase-admin.ts`.
-    - **Role checks**: Actions that require `manager` or `admin` roles read user roles from `users/{uid}` in Firestore.
-    - **Error responses**: Standard error payloads use `{ error: string, details?: any }` with appropriate HTTP status codes.
-    - **Timestamps**: Server-written timestamps use `admin.firestore.FieldValue.serverTimestamp()`.
+C. Add review
+- Method: POST
+- Path: `/api/venues/[id]/reviews`
+- Auth: Required
+- Implementation: `app/api/venues/[id]/reviews/route.ts`
 
-    ## Error codes (common)
-    - `400 Bad Request` — missing/invalid parameters
-    - `401 Unauthorized` — missing/invalid token
-    - `403 Forbidden` — insufficient permissions (role check failed)
-    - `404 Not Found` — resource missing
-    - `409 Conflict` — resource not in expected state (e.g., slot already reserved)
-    - `500 Internal Server Error` — server-side failure
+Request body:
+```json
+{
+  "rating": 4,
+  "comment": "Nice ground",
+  "userId": "optional (server may derive from token)"
+}
+```
 
-    --
+Success:
+- 200
+```json
+{ "ok": true, "reviewId": "rev_123" }
+```
 
-    ## Endpoints (grouped)
+Errors:
+- 400 invalid rating
+- 401 / 403 / 500
 
-    Notes:
-    - Each entry shows: method, path, auth, purpose, request example, response example, and implementation file path.
-    - Implementation file links are relative to the repository root.
+--------------------------------------------------------------------------------
+6) USERS
 
-    ### Bookings
+A. Upsert user
+- Method: POST
+- Path: `/api/users/upsert`
+- Auth: Required
+- Implementation: `app/api/users/upsert/route.ts`
 
-    - **Create booking**
-      - Method: `POST`
-      - Path: `/api/bookings`
-      - Auth: Required
-      - Purpose: Atomically verify a slot hold or availability, create a booking document, and mark the slot reserved.
-      - Request example:
-        ```json
-        {
-          "venueId": "venue_abc",
-          "slotId": "venue_abc_2025-11-30_18:00",
-          "userId": "UID",
-          "amount": 600
-        }
-        ```
-      - Response example (success):
-        ```json
-        { "success": true, "bookingId": "booking_xyz", "status": "PENDING_PAYMENT" }
-        ```
-      - Implementation: `app/api/bookings/route.ts`
+Request body:
+```json
+{
+  "uid": "string (required)",
+  "displayName": "string",
+  "email": "string",
+  "role": "optional (only admin allowed to set role)"
+}
+```
 
-    - **Cancel booking**
-      - Method: `POST`
-      - Path: `/api/bookings/[id]/cancel`
-      - Auth: Required
-      - Purpose: Cancel a booking (subject to venue cancellation rules) and release the reserved slot.
-      - Request example:
-        ```json
-        { "userId": "UID" }
-        ```
-      - Response example (success): `{ "success": true }`
-      - Implementation: `app/api/bookings/[id]/route.ts` or `app/api/bookings/[id]/cancel/route.ts` (search `app/api/bookings`)
+Success:
+- 200
+```json
+{ "ok": true, "uid": "uid_123" }
+```
 
-    ### Invoices & QR verification
+Errors:
+- 401 Unauthorized
+- 403 Forbidden — non-admin attempting to set role
+- 500 Internal Server Error
 
-    - **Get invoice (PDF)**
-      - Method: `GET`
-      - Path: `/api/invoices/[id]`
-      - Auth: Required (manager/admin or owner)
-      - Purpose: Generate or return the booking invoice (PDF) for the given booking.
-      - Implementation: `app/api/invoices/[id]/route.ts`
+Notes:
+- Typically called from client to ensure `users/{uid}` doc exists after sign-up.
 
-    - **Verify invoice / QR payload**
-      - Method: `POST`
-      - Path: `/api/invoices/verify`
-      - Auth: Required (manager or admin typically)
-      - Purpose: Verify QR payload and permissions (used by `manager/scan-qr` flows).
-      - Implementation: `app/api/invoices/verify/route.ts`
+--------------------------------------------------------------------------------
+7) UPLOADS (UploadThing)
 
-    ### Payment (eSewa)
+A. Upload webhook / endpoint
+- Method: POST
+- Path: `/api/uploadthing`
+- Auth: Required (server should verify user's token)
+- Implementation: `app/api/uploadthing/route.ts` and `app/api/uploadthing/core.ts`
 
-    - **Initiate payment**
-      - Method: `POST`
-      - Path: `/api/payment/initiate`
-      - Auth: Required
-      - Purpose: Create a server-side payment initiation, attach `esewaTransactionUuid` to a booking atomically, and return any payment metadata required by the client.
-      - Implementation: `app/api/payment/initiate/route.ts`
+Request:
+- Multipart/form-data or JSON depending on provider callback
+- For dev stub, implementation returns `{ id: "fakeId" }`
 
-    - **Verify payment**
-      - Method: `POST`
-      - Path: `/api/payment/verify`
-      - Auth: Required
-      - Purpose: Confirm payment with eSewa, and finalize the booking on successful verification.
-      - Request example:
-        ```json
-        { "transactionUuid": "uuid", "bookingId": "booking_xyz" }
-        ```
-      - Implementation: `app/api/payment/verify/route.ts`
+Success (expected production):
+- 200
+```json
+{ "ok": true, "fileId": "uploaded_file_id", "url": "https://cdn.example/..." }
+```
 
-    ### Slots (server-side write surfaces)
+Errors:
+- 401 Unauthorized — if token missing/invalid (must verify)
+- 500 Internal Server Error
 
-    - **Generate slots**
-      - Method: `POST`
-      - Path: `/api/slots/generate`
-      - Auth: Manager or Admin
-      - Purpose: Generate a series of slots for a venue (used by managers to initialize availability).
-      - Implementation: `app/api/slots/generate/route.ts` and `lib/slotService.admin.ts`
+Notes:
+- Current repo contains a dev stub — must replace with proper verification and return of user info and file metadata in production.
 
-    - **Hold slot**
-      - Method: `POST`
-      - Path: `/api/slots/hold`
-      - Auth: Required
-      - Purpose: Place a short-lived hold on a slot (e.g., 5 minutes) to prevent race conditions during checkout.
-      - Request example:
-        ```json
-        { "slotId": "slot_xyz", "venueId": "venue_abc", "holdDurationMinutes": 5 }
-        ```
-      - Implementation: `app/api/slots/hold/route.ts`
+--------------------------------------------------------------------------------
+8) MAINTENANCE / CRON
 
-    - **Reserve / confirm slot**
-      - Method: `POST`
-      - Path: `/api/slots/reserve`
-      - Auth: Required
-      - Purpose: Convert a hold into a confirmed reservation (typically after successful payment).
-      - Implementation: `app/api/slots/reserve/route.ts`
+A. Run maintenance
+- Method: GET
+- Path: `/api/cron`
+- Auth: Optional but should be protected in production (recommend `CRON_SECRET` header)
+- Implementation: `app/api/cron/route.ts`
 
-    - **Unbook / release**
-      - Method: `POST`
-      - Path: `/api/slots/unbook`
-      - Auth: Manager or Admin
-      - Purpose: Force-release or clear a booked slot.
-      - Implementation: `app/api/slots/unbook/route.ts`
+Purpose:
+- Cleanup expired holds, reconcile stuck states, run scheduled maintenance tasks.
 
-    ### Venues
+Headers (recommended in prod):
+- `X-CRON-SECRET: <secret>`
 
-    - **List venues**
-      - Method: `GET`
-      - Path: `/api/venues`
-      - Auth: Public
-      - Purpose: Return public venue list and metadata used by the client map and listings.
-      - Implementation: `app/api/venues/route.ts`
+Success:
+- 200
+```json
+{ "ok": true, "jobsRun": ["cleanupExpiredHolds", "reindexStats"] }
+```
 
-    - **Create / upsert venue**
-      - Method: `POST`
-      - Path: `/api/venues`
-      - Auth: Manager or Admin
-      - Purpose: Create a venue and initialize `venueSlots` as needed.
-      - Implementation: `app/api/venues/route.ts`
+Errors:
+- 403 Forbidden if `CRON_SECRET` missing/invalid when enforced
+- 500 Internal Server Error
 
-    - **Add review**
-      - Method: `POST`
-      - Path: `/api/venues/[id]/reviews`
-      - Auth: Required
-      - Purpose: Add or update a review and merge aggregates in a server transaction.
-      - Implementation: `app/api/venues/[id]/reviews/route.ts`
+--------------------------------------------------------------------------------
+9) LEGACY / LOCAL-ONLY
 
-    ### Users
+A. Grounds (file-backed mock)
+- Method: GET / POST
+- Path: `/api/grounds`
+- Auth: Public (used only in dev)
+- Implementation: `app/api/grounds/route.ts`
 
-    - **Upsert user**
-      - Method: `POST`
-      - Path: `/api/users/upsert`
-      - Auth: Required
-      - Purpose: Safely upsert `users/{uid}`; only admins may assign privileged roles.
-      - Implementation: `app/api/users/upsert/route.ts`
+GET success:
+```json
+[
+  {
+    "id": 1,
+    "name": "Futsal Arena",
+    "location": "Kathmandu",
+    "price": 1500,
+    "image": "/images/ground1.jpg"
+  }
+]
+```
 
-    ### Uploads (UploadThing)
+POST (dev only):
+- Body: same shape as above (no id)
+- Returns:
+```json
+{ "message": "Ground added successfully" }
+```
 
-    - **Upload webhook / endpoint**
-      - Method: `POST`
-      - Path: `/api/uploadthing`
-      - Auth: Required (server should verify the user's token)
-      - Purpose: Handle upload callbacks and return metadata.
-      - Note: Current implementation contains a dev stub returning `{ id: "fakeId" }` — replace with proper token verification.
-      - Implementation: `app/api/uploadthing/core.ts`
+Notes:
+- This is a development mock that persists to `data/grounds.json`. Not suitable for production.
 
-    ### Maintenance / Cron
+--------------------------------------------------------------------------------
+Common response examples and shapes
 
-    - **Run maintenance**
-      - Method: `GET`
-      - Path: `/api/cron`
-      - Auth: Optional (should be protected in production)
-      - Purpose: Cleanup expired holds and run periodic maintenance.
-      - Recommendation: Protect with a `CRON_SECRET` header in production.
-      - Implementation: `app/api/cron/route.ts`
+- Generic success:
+```json
+{
+  "ok": true,
+  "data": { ... }
+}
+```
 
-    ### Legacy / Local-only
+- Generic error:
+```json
+{
+  "error": "Descriptive error message",
+  "details": { /* optional debug info */ }
+}
+```
 
-    - **Grounds (file-backed)**
-      - Method: `GET` / `POST`
-      - Path: `/api/grounds`
-      - Purpose: Local mock used during development; reads/writes `data/grounds.json`. Not suitable for production.
-      - Implementation: `app/api/grounds/route.ts`
+--------------------------------------------------------------------------------
+Operational & security recommendations
+- Always validate tokens server-side for write operations.
+- Use Firestore security rules to restrict client writes; server endpoints should be the only way to modify sensitive fields (booking status, esewaTransactionUuid, etc.).
+- Keep `ESEWA_SECRET_KEY`, `ESEWA_MERCHANT_CODE`, `INVOICE_QR_SECRET` out of source control and set them in environment settings for each deployment.
+- Add monitoring & alerts for the following conditions:
+  - Payment verified by eSewa but DB update failed.
+  - Booking documents missing for confirmed eSewa payments.
+  - High rate of `409 Conflict` holds/fails during checkout (indicates race conditions).
+- Implement reconciliation UI that queries `lib/paymentLogger` outputs so ops can match logged payments with missing/mismatched bookings.
 
-    --
+--------------------------------------------------------------------------------
+Where to find the code (quick)
+- Bookings: `app/api/bookings/route.ts` and `app/api/bookings/[id]/...`
+- Slots: `app/api/slots/` directory
+- Payments: `app/api/payment/initiate/route.ts`, `app/api/payment/verify/route.ts`, `app/api/payment/generate-signature/route.ts`
+- Invoices/QR verify: `app/api/invoices/verify/route.ts`
+- Uploads: `app/api/uploadthing/route.ts` and `app/api/uploadthing/core.ts`
+- Maintenance: `app/api/cron/route.ts`
+- Local grounds mock: `app/api/grounds/route.ts`
 
-    ## Server Actions (RSC / app/actions)
-
-    - `app/actions/bookings.ts` — server actions used by Server Components for booking flows (wrap Admin SDK logic).
-    - `app/actions/slots.ts` — server actions for slot operations (releaseHold, blockSlot, etc.).
-
-    ## Migration & Security Notes
-
-    - Migrate any client-side writes that change bookings, slots, or venues to server endpoints to maintain transactional integrity.
-    - Fix the UploadThing auth stub in `app/api/uploadthing/core.ts` — verify Firebase ID tokens server-side and return the real user id.
-    - Tighten Firestore rules: restrict `users` reads/writes to owners and manager/admin roles where appropriate. See `firestore.rules`.
-
-    ## Examples
-
-    1) Hold a slot (client)
-
-      - Request: `POST /api/slots/hold`
-      - Headers: `Authorization: Bearer <idToken>`
-      - Body:
-        ```json
-        {
-          "slotId": "venue_2025-01-20_14:00",
-          "venueId": "venue_abc",
-          "holdDurationMinutes": 5
-        }
-        ```
-
-    2) Initiate payment
-
-      - Request: `POST /api/payment/initiate`
-      - Body:
-        ```json
-        {
-          "bookingId": "booking_abc123",
-          "totalAmount": 600
-        }
-        ```
-
-    3) Verify QR / invoice (manager scan)
-
-      - Request: `POST /api/invoices/verify`
-      - Body:
-        ```json
-        { "qrPayload": "...", "managerId": "UID" }
-        ```
-
-    ## Where to look in the code
-
-    - Booking flow / server transaction: `app/api/bookings/route.ts`
-    - Slot server helpers: `lib/slotService.admin.ts`
-    - Payment flow & verification: `app/api/payment/initiate/route.ts`, `app/api/payment/verify/route.ts`
-    - Uploads: `app/api/uploadthing/core.ts`
-    - Migration plan and audit: `reports/firebase-client-writes.md`
-
-    --
-
-    If you'd like next steps, I can:
-
-    - Option A: Generate a complete OpenAPI spec (YAML/JSON) for all routes.
-    - Option B: Add per-endpoint curl samples and expanded response schemas in `backend.md`.
-    - Option C: Create a PR that replaces the UploadThing auth stub and adds tests for payments and bookings.
-
-    Choose A, B, or C and I'll proceed.
+--------------------------------------------------------------------------------
+If you want next steps, I can:
+- Generate a fully validated OpenAPI (Swagger) specification for all endpoints, including request/response schemas and examples.
+- Add `curl` and Postman examples inline to each endpoint.
+- Implement basic tests (integration / e2e stubs) for payment flows, idempotency and booking transactions.
+- Add an admin reconciliation page that surfaces payments logged by `lib/paymentLogger` for manual reconciliation.

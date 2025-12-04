@@ -1,0 +1,23 @@
+{
+  "name": "Default",
+  "slug": "default",
+  "author": "Tournament Team",
+  "version": "1.0.0",
+  "description": "Starter/default theme for the Tournament project. Provides light and dark color variables and pointers to logos and preview images.",
+  "base": "light",
+  "preview": "screenshots/preview.png",
+  "logo": "logo.svg",
+  "logo_small": "logo-small.svg",
+  "manifest": null,
+  "fonts": [],
+  "colors": {
+    "accent": "#ef5f15",
+    "background": "#ffffff",
+    "foreground": "#0f172a",
+    "sidebar_background": "#ffffff",
+    "sidebar_border": "rgba(15,23,42,0.06)",
+    "sidebar_accent": "#ef5f15"
+  },
+  "variables": "variables.css",
+  "notes": "Place assets (logo.svg, variables.css, screenshots/) in the same folder. The app expects consistent CSS variable names defined in variables.css (see project globals)."
+}
