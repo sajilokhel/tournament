@@ -63,47 +63,52 @@ Headers:
 - `Authorization: Bearer <idToken>`
 - `Content-Type: application/json`
 
-Request body (JSON):
+Request body (JSON) — NEW (breaking):
 ```json
 {
   "venueId": "string (required)",
-  "slotId": "string (required)",
-  // optional: client-provided metadata
-  "metadata": { "teamName": "string", "notes": "string" }
+  "date": "YYYY-MM-DD (required)",
+  "startTime": "HH:MM (required)",
+  "endTime": "HH:MM (optional)",
+  "amount": number (required),
+  "metadata": { "teamName": "string", "notes": "string" } // optional
 }
 ```
 
 Success responses:
-- 200 / 201 (created)
+- 201 Created
 ```json
 {
-  "ok": true,
+  "success": true,
   "bookingId": "booking_generated_id"
 }
 ```
 
 Common error responses:
-- 400 Bad Request — missing required fields
+- 400 Bad Request — missing required fields or invalid body
 ```json
-{ "error": "Missing required fields: venueId, slotId" }
+{ "success": false, "error": "Missing required fields: venueId, date, startTime, amount" }
 ```
 - 401 Unauthorized — missing/invalid token
 ```json
-{ "error": "Unauthorized" }
+{ "error": "Missing Authorization token" }
 ```
-- 404 Not Found — slot not found
+- 404 Not Found — venue or resource not found
 ```json
-{ "error": "Slot not found" }
+{ "success": false, "error": "Venue not found" }
 ```
-- 409 Conflict — slot not available
+- 409 Conflict — slot blocked or already booked
 ```json
-{ "error": "Slot is not available" }
+{ "success": false, "error": "Slot is blocked" }
 ```
-- 500 Internal Server Error — transaction failure
+- 500 Internal Server Error — server or transaction failure
 
 Notes:
-- Implementation performs a Firestore transaction to ensure atomicity: checks slot availability, creates `bookings/{id}`, updates slot/venue state (`booked` + `bookingId`).
-- The booking doc created includes `status` = `pending` or `pending_payment` depending on flow conventions.
+- This endpoint is now a thin wrapper around server action `createBooking(token, venueId, date, startTime, endTime?, amount)`. The action verifies the token and manages holds/bookings via `venueSlots` and `bookings`.
+- This is a breaking change for clients that previously POSTed `{ venueId, slotId }`. To migrate, clients must either:
+  - Provide `{ venueId, date, startTime, amount }` (you can obtain date/startTime/amount from your slot data before calling), or
+  - Use/reintroduce a slot-based endpoint if you prefer calling by `slotId`.
+- On success the booking will be created with `status: pending_payment` and a short hold will be placed on the slot; users should proceed to payment accordingly.
 
 B. Cancel booking
 - Method: POST
