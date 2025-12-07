@@ -7,10 +7,10 @@ import { ESEWA_MERCHANT_CODE, ESEWA_SECRET_KEY, getSuccessUrl, getFailureUrl } f
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { bookingId, amount, totalAmount } = body;
+    const { bookingId } = body;
 
-    if (!bookingId || !totalAmount) {
-      return NextResponse.json({ error: 'Missing bookingId or totalAmount' }, { status: 400 });
+    if (!bookingId) {
+      return NextResponse.json({ error: 'Missing bookingId' }, { status: 400 });
     }
 
     if (!isAdminInitialized()) {
@@ -25,6 +25,11 @@ export async function POST(request: NextRequest) {
     }
 
     const booking = bookingSnap.data() as any;
+
+    // Booking must carry server-calculated amounts
+    if (booking.advanceAmount == null) {
+      return NextResponse.json({ error: 'Booking missing server-computed amounts' }, { status: 400 });
+    }
 
     // Generate transaction UUID
     const transactionUuid = `${bookingId}_${Date.now()}`;
@@ -67,12 +72,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Generate signature (same algorithm as /api/payment/generate-signature)
+    // Generate signature (use server-stored advanceAmount as the payment amount)
     if (!ESEWA_SECRET_KEY) {
       return NextResponse.json({ error: 'Payment gateway not configured' }, { status: 500 });
     }
 
-    const message = `total_amount=${totalAmount},transaction_uuid=${transactionUuid},product_code=${ESEWA_MERCHANT_CODE}`;
+    const paidAmount = booking.advanceAmount; // amount to be charged now
+    const message = `total_amount=${paidAmount},transaction_uuid=${transactionUuid},product_code=${ESEWA_MERCHANT_CODE}`;
     const hmac = crypto.createHmac('sha256', ESEWA_SECRET_KEY);
     hmac.update(message);
     const signature = hmac.digest('base64');
@@ -82,8 +88,8 @@ export async function POST(request: NextRequest) {
       transactionUuid,
       signature,
       paymentParams: {
-        amount: String(amount || totalAmount), // Use passed amount or fallback to totalAmount
-        totalAmount: String(totalAmount),
+        amount: String(paidAmount),
+        totalAmount: String(paidAmount),
         transactionUuid,
         productCode: ESEWA_MERCHANT_CODE,
         successUrl: getSuccessUrl(),

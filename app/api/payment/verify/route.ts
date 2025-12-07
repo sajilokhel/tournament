@@ -13,6 +13,7 @@ import { db, auth, isAdminInitialized } from '@/lib/firebase-admin';
 import admin from 'firebase-admin';
 import { bookSlot } from '@/lib/slotService.admin';
 import { logPayment } from '@/lib/paymentLogger';
+import { computeAmountsFromBooking } from '@/lib/pricing/pricing';
 
 interface EsewaVerificationResponse {
   product_code: string;
@@ -275,6 +276,7 @@ export async function POST(request: NextRequest) {
           metadata: { esewaStatus: verificationData.status, alreadyConfirmed: true },
         });
 
+        const computedAlready = computeAmountsFromBooking(booking);
         return NextResponse.json({
           verified: true,
           status: 'COMPLETE',
@@ -292,6 +294,8 @@ export async function POST(request: NextRequest) {
             endTime: booking.endTime,
             amount: booking.amount,
             bookingType: booking.bookingType,
+            advanceAmount: computedAlready.advanceAmount,
+            dueAmount: computedAlready.totalAmount - computedAlready.advanceAmount,
           },
         });
       }

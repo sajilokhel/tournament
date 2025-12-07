@@ -201,7 +201,11 @@ export default function PaymentSuccessPage() {
                 date={bookingDetails.date}
                 startTime={bookingDetails.startTime}
                 endTime={bookingDetails.endTime}
-                price={bookingDetails.amount}
+                computed={{
+                  baseAmount: bookingDetails.amount,
+                  totalAmount: bookingDetails.amount,
+                  advanceAmount: bookingDetails.advanceAmount,
+                }}
                 className="bg-white shadow-sm border-gray-200"
               />
             </div>

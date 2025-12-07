@@ -138,6 +138,14 @@ const UserBookingsPage = () => {
                 console.warn('⚠️ No saved esewaTransactionUuid for booking, skipping strict verify using booking.id:', booking.id);
               }
 
+              // Ensure server-provided advanceAmount is present
+              const advanceAmountForVerify = (booking as any).advanceAmount;
+              if (advanceAmountForVerify == null) {
+                toast.error('Cannot verify payment: booking missing server-calculated advance amount.');
+                setVerifyingId(null);
+                return;
+              }
+
               const verifyResponse = await fetch("/api/payment/verify", {
                 method: "POST",
                 headers: {
@@ -146,7 +154,7 @@ const UserBookingsPage = () => {
                 body: JSON.stringify({
                   transactionUuid: effectiveTxn,
                   productCode: "EPAYTEST",
-                    totalAmount: (booking as any).amount || (booking as any).price || 0,
+                  totalAmount: advanceAmountForVerify,
                 }),
               });
 
@@ -409,6 +417,13 @@ const UserBookingsPage = () => {
       console.log("🔍 Verifying payment status for booking:", booking.id);
 
       // Call the verification API (server will handle booking confirmation)
+      const advanceAmountForVerify = (booking as any).advanceAmount;
+      if (advanceAmountForVerify == null) {
+        toast.error('Cannot verify payment: booking missing server-calculated advance amount.');
+        setVerifyingId(null);
+        return;
+      }
+
       const verifyResponse = await fetch("/api/payment/verify", {
         method: "POST",
         headers: {
@@ -417,7 +432,7 @@ const UserBookingsPage = () => {
         body: JSON.stringify({
           transactionUuid: (booking as any).esewaTransactionUuid || booking.id,
           productCode: "EPAYTEST", // TODO: Get from env
-          totalAmount: (booking as any).advanceAmount || Math.ceil(((booking.amount || booking.price || 0) * 16.6) / 100),
+          totalAmount: advanceAmountForVerify,
         }),
       });
 
@@ -616,22 +631,28 @@ const UserBookingsPage = () => {
 
         <div className="flex justify-between items-center">
           <span className="text-sm text-muted-foreground">Total Amount</span>
-          <span className="text-lg font-bold">
-            Rs. {booking.amount || booking.price || 0}
-          </span>
+          <span className="text-lg font-bold">Rs. {booking.amount || booking.price || 0}</span>
         </div>
-        
+
         <div className="flex justify-between items-center mt-2">
           <span className="text-sm text-muted-foreground">Advance Paid</span>
           <span className="text-sm font-semibold text-orange-600">
-            Rs. {booking.advanceAmount || Math.ceil(((booking.amount || booking.price || 0) * 16.6) / 100)}
+            {booking.advanceAmount != null ? `Rs. ${booking.advanceAmount}` : (
+              <span className="text-destructive">Missing server amount</span>
+            )}
           </span>
         </div>
 
         <div className="flex justify-between items-center mt-1">
           <span className="text-sm text-muted-foreground">Due Amount</span>
           <span className="text-sm font-semibold text-red-600">
-            Rs. {booking.dueAmount || (booking.amount || booking.price || 0) - Math.ceil(((booking.amount || booking.price || 0) * 16.6) / 100)}
+            {booking.dueAmount != null ? `Rs. ${booking.dueAmount}` : (
+              booking.amount || booking.price ? (
+                <span className="text-destructive">Missing server amount</span>
+              ) : (
+                'Rs. 0'
+              )
+            )}
           </span>
         </div>
         

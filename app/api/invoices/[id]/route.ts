@@ -164,9 +164,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
         // Total Amount label and value
         // Total Amount label and value
+        // Require server-calculated payment fields. Do not fallback to client-side math.
+        if (booking.advanceAmount == null || booking.dueAmount == null) {
+          return NextResponse.json({ error: 'Booking missing server-calculated payment fields (advanceAmount/dueAmount)' }, { status: 400 });
+        }
+
         const totalAmount = Number(invoiceData.amount) || 0;
-        const advanceAmount = booking.advanceAmount || Math.ceil((totalAmount * 16.6) / 100);
-        const dueAmount = booking.dueAmount || (totalAmount - advanceAmount);
+        const advanceAmount = booking.advanceAmount;
+        const dueAmount = booking.dueAmount;
         
         const formattedTotal = totalAmount.toFixed(2);
         const formattedAdvance = advanceAmount.toFixed(2);

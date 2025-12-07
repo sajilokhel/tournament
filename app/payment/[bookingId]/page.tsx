@@ -114,6 +114,16 @@ const PaymentPage = () => {
 
         console.log("✅ Booking document found:", bookingSnap.data());
         const bookingData = { id: bookingSnap.id, ...bookingSnap.data() };
+
+        // Ensure server-computed amounts are present.
+        if (bookingData.advanceAmount == null) {
+          setError(
+            'Booking is missing server-computed payment amounts. Please contact support or refresh.'
+          );
+          setLoading(false);
+          return;
+        }
+
         setBooking(bookingData);
 
         if (!isMounted) return;
@@ -179,15 +189,13 @@ const PaymentPage = () => {
     setIsProcessing(true);
 
     try {
-      // Calculate advance amount if not present (fallback for legacy or immediate updates)
-      const totalAmount = booking.amount || booking.price || 0;
-      const advanceAmount = booking.advanceAmount || Math.ceil((totalAmount * 16.6) / 100);
+      // Use server-stored advance amount. Do NOT compute locally.
+      if (booking.advanceAmount == null) {
+        throw new Error('Missing server-calculated advance amount for this booking.');
+      }
 
-      // Initiate eSewa payment with advance amount
-      await initiateEsewaPayment(
-        bookingId,
-        advanceAmount
-      );
+      // Initiate eSewa payment. Server will use the booking's stored amounts.
+      await initiateEsewaPayment(bookingId);
       
       // Note: User will be redirected to eSewa, so code after this won't execute
       // Success/failure callbacks will handle the rest
@@ -285,14 +293,14 @@ const PaymentPage = () => {
                 <p className="text-xs text-muted-foreground">To confirm booking</p>
               </div>
               <p className="text-xl font-bold">
-                Rs. {booking.advanceAmount || Math.ceil(((booking.amount || booking.price || 0) * 16.6) / 100)}
+                Rs. {booking.advanceAmount}
               </p>
             </div>
 
             <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
               <p className="text-muted-foreground">Due Amount</p>
               <p className="font-semibold">
-                Rs. {booking.dueAmount || (booking.amount || booking.price || 0) - Math.ceil(((booking.amount || booking.price || 0) * 16.6) / 100)}
+                Rs. {booking.dueAmount}
               </p>
             </div>
             <p className="text-xs text-center text-muted-foreground bg-gray-100 dark:bg-gray-800 p-2 rounded">
@@ -331,7 +339,7 @@ const PaymentPage = () => {
             disabled={isProcessing || isExpired}
           >
             {isProcessing ? <Loader2 className="animate-spin mr-2" /> : null}
-            {isExpired ? "Hold Expired" : `Pay Advance Rs. ${booking.advanceAmount || Math.ceil(((booking.amount || booking.price || 0) * 16.6) / 100)}`}
+            {isExpired ? "Hold Expired" : `Pay Advance Rs. ${booking.advanceAmount}`}
           </Button>
         </CardFooter>
       </Card>

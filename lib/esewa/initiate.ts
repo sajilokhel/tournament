@@ -21,14 +21,13 @@ import {
  * and returns a signature + payment params for submitting to eSewa.
  */
 async function requestInitiationFromServer(
-  bookingId: string,
-  amount: string,
-  totalAmount: string
+  bookingId: string
 ): Promise<{ signature: string; transactionUuid: string; paymentParams: EsewaPaymentParams } > {
+  // Ask server to initiate payment for the bookingId and return the signed params.
   const response = await fetch('/api/payment/initiate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ bookingId, amount, totalAmount }),
+    body: JSON.stringify({ bookingId }),
   });
 
   if (!response.ok) {
@@ -101,7 +100,8 @@ function submitPaymentForm(params: EsewaPaymentParams, signature: string): void 
  */
 export async function initiateEsewaPayment(
   bookingId: string,
-  amount: number,
+  // optional amount is deprecated — server is authoritative. Keep for backward compat.
+  amount?: number,
   options?: {
     taxAmount?: number;
     productServiceCharge?: number;
@@ -109,23 +109,9 @@ export async function initiateEsewaPayment(
   }
 ): Promise<void> {
   try {
-    // Prepare payment parameters
-    const taxAmount = options?.taxAmount || 0;
-    const productServiceCharge = options?.productServiceCharge || 0;
-    const productDeliveryCharge = options?.productDeliveryCharge || 0;
-    
-    const totalAmount = calculateTotalAmount(
-      amount,
-      taxAmount,
-      productServiceCharge,
-      productDeliveryCharge
-    );
-
     // Ask the server to create the canonical transaction UUID and signature
     const { signature, transactionUuid, paymentParams } = await requestInitiationFromServer(
-      bookingId,
-      amount.toString(),
-      totalAmount.toString()
+      bookingId
     );
 
     // Submit payment form (redirects to eSewa). The server already persisted

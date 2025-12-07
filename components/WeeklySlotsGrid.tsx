@@ -645,7 +645,8 @@ const WeeklySlotsGrid: React.FC<WeeklySlotsGridProps> = ({ groundId }) => {
                   date={formatDate(new Date(selectedSlot.date))}
                   startTime={selectedSlot.startTime}
                   endTime={selectedSlot.endTime}
-                  price={venueDetails?.pricePerHour || 1000}
+                  venueId={groundId}
+                  slots={1}
                   className="border-0 shadow-none bg-muted/10"
                 />
               )}
