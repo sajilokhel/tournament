@@ -58,12 +58,13 @@
  *   format; if you require timezone-aware behavior, convert inputs accordingly.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { db, isAdminInitialized } from "@/lib/firebase-admin";
+import { db } from "@/lib/firebase-admin";
 import {
   computeAmountsFromBooking,
   computeAmountsFromVenue,
 } from "@/lib/pricing";
 import { getVenueSlots } from "@/lib/slotService";
+import { requireAdminSDK } from "@/lib/server/auth";
 
 type RequestBody = {
   venueId?: string;
@@ -74,6 +75,9 @@ type RequestBody = {
 };
 
 export async function POST(request: NextRequest) {
+  const sdkError = requireAdminSDK();
+  if (sdkError) return sdkError;
+
   try {
     const body = await request.json();
     const { venueId, date, startTime, slots, booking } = body as RequestBody;
@@ -88,13 +92,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Missing venueId, date or startTime" },
         { status: 400 },
-      );
-    }
-
-    if (!isAdminInitialized()) {
-      return NextResponse.json(
-        { error: "Admin SDK not initialized" },
-        { status: 500 },
       );
     }
 

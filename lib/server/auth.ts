@@ -1,6 +1,20 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { auth, db } from "@/lib/firebase-admin";
+import { auth, db, isAdminInitialized } from "@/lib/firebase-admin";
+
+/**
+ * Guard: return a 500 NextResponse if the Admin SDK is not initialised, else null.
+ * Usage: const sdkError = requireAdminSDK(); if (sdkError) return sdkError;
+ */
+export function requireAdminSDK(): NextResponse | null {
+  if (!isAdminInitialized()) {
+    return NextResponse.json(
+      { error: "Server misconfigured: Admin SDK not initialized" },
+      { status: 500 },
+    );
+  }
+  return null;
+}
 
 export async function verifyUser(token: string) {
   try {

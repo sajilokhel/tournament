@@ -72,8 +72,8 @@
  *     should handle the response as a file download.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { db, isAdminInitialized } from "@/lib/firebase-admin";
-import { verifyRequestToken, getUserRole } from "@/lib/server/auth";
+import { db } from "@/lib/firebase-admin";
+import { verifyRequestToken, getUserRole, requireAdminSDK } from "@/lib/server/auth";
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import crypto from "crypto";
@@ -83,12 +83,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!isAdminInitialized()) {
-    return NextResponse.json(
-      { error: "Server misconfigured: Admin SDK not initialized" },
-      { status: 500 },
-    );
-  }
+  const sdkError = requireAdminSDK();
+  if (sdkError) return sdkError;
 
   const { id: bookingId } = await params;
 

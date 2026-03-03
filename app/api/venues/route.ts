@@ -75,18 +75,14 @@
  *     before creating the document.
  */
 import { NextResponse } from "next/server";
-import { db, isAdminInitialized } from "@/lib/firebase-admin";
+import { db } from "@/lib/firebase-admin";
 import admin from "firebase-admin";
 import { DEFAULT_TIMEZONE } from "@/lib/utils";
-import { verifyRequestToken, getUserRole } from "@/lib/server/auth";
+import { verifyRequestToken, getUserRole, requireAdminSDK } from "@/lib/server/auth";
 
 export async function POST(req: Request) {
-  if (!isAdminInitialized()) {
-    return NextResponse.json(
-      { error: "Server configuration error: Admin SDK not initialized" },
-      { status: 500 },
-    );
-  }
+  const sdkError = requireAdminSDK();
+  if (sdkError) return sdkError;
 
   try {
     const body = await req.json();

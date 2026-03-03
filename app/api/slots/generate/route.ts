@@ -55,21 +55,16 @@
  *     repeatedly without understanding the helper behavior.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { isAdminInitialized } from "@/lib/firebase-admin";
 import { generateSlots } from "@/lib/slotService.admin";
-import { verifyRequestToken, isManagerOrAdmin } from "@/lib/server/auth";
+import { verifyRequestToken, isManagerOrAdmin, requireAdminSDK } from "@/lib/server/auth";
 
 function getSlotId(groundId: string, date: string, startTime: string) {
   return `${groundId}_${date}_${startTime.replace(":", "")}`;
 }
 
 export async function POST(request: NextRequest) {
-  if (!isAdminInitialized()) {
-    return NextResponse.json(
-      { error: "Server not configured" },
-      { status: 500 },
-    );
-  }
+  const sdkError = requireAdminSDK();
+  if (sdkError) return sdkError;
 
   try {
     const body = await request.json();

@@ -70,17 +70,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import admin from "firebase-admin";
-import { db, isAdminInitialized } from "@/lib/firebase-admin";
+import { db } from "@/lib/firebase-admin";
 import { unbookSlot } from "@/lib/slotService.admin";
-import { verifyRequestToken, isManagerOrAdmin } from "@/lib/server/auth";
+import { verifyRequestToken, isManagerOrAdmin, requireAdminSDK } from "@/lib/server/auth";
 
 export async function POST(request: NextRequest) {
-  if (!isAdminInitialized()) {
-    return NextResponse.json(
-      { error: "Server not configured" },
-      { status: 500 },
-    );
-  }
+  const sdkError = requireAdminSDK();
+  if (sdkError) return sdkError;
 
   try {
     const body = await request.json();

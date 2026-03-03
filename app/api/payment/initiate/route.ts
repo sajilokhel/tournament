@@ -76,7 +76,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { db, isAdminInitialized } from "@/lib/firebase-admin";
+import { db } from "@/lib/firebase-admin";
 import admin from "firebase-admin";
 import {
   ESEWA_MERCHANT_CODE,
@@ -84,21 +84,18 @@ import {
   getSuccessUrl,
   getFailureUrl,
 } from "@/lib/esewa/config";
+import { requireAdminSDK } from "@/lib/server/auth";
 
 export async function POST(request: NextRequest) {
+  const sdkError = requireAdminSDK();
+  if (sdkError) return sdkError;
+
   try {
     const body = await request.json();
     const { bookingId } = body;
 
     if (!bookingId) {
       return NextResponse.json({ error: "Missing bookingId" }, { status: 400 });
-    }
-
-    if (!isAdminInitialized()) {
-      return NextResponse.json(
-        { error: "Admin SDK not initialized" },
-        { status: 500 },
-      );
     }
 
     // Read booking

@@ -143,7 +143,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { ESEWA_VERIFY_URL, ESEWA_SECRET_KEY } from "@/lib/esewa/config";
-import { db, auth, isAdminInitialized } from "@/lib/firebase-admin";
+import { db } from "@/lib/firebase-admin";
 import admin from "firebase-admin";
 import { bookSlot } from "@/lib/slotService.admin";
 import { logPayment } from "@/lib/paymentLogger";
@@ -391,7 +391,6 @@ export async function POST(request: NextRequest) {
       }
 
       const booking = bookingSnap.data();
-      console.log("booking3");
 
       // Check if already confirmed to prevent duplicate processing
       if (booking.status === "confirmed") {

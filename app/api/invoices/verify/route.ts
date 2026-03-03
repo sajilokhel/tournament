@@ -1,19 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAdminInitialized } from "@/lib/firebase-admin";
-import { verifyRequestToken } from "@/lib/server/auth";
+import { db } from "@/lib/firebase-admin";
+import { verifyRequestToken, requireAdminSDK, getUserRole } from "@/lib/server/auth";
 import crypto from "crypto";
 
 // POST /api/invoices/verify
 export async function POST(request: NextRequest) {
-  if (!isAdminInitialized()) {
-    return NextResponse.json(
-      { error: "Server misconfigured: Admin SDK not initialized" },
-      { status: 500 },
-    );
-  }
+  const sdkError = requireAdminSDK();
+  if (sdkError) return sdkError;
 
   const authResult = await verifyRequestToken(request);
   if (authResult instanceof NextResponse) return authResult;
+  const { uid: callerUid } = authResult;
 
   try {
     const body = await request.json();
@@ -92,10 +89,8 @@ export async function POST(request: NextRequest) {
     const owner = ownerSnap.exists ? ownerSnap.data() : null;
 
     // Authorization: allow if caller is admin or manager of venue
-    const callerUid = decoded.uid;
-    const callerUserSnap = await db.collection("users").doc(callerUid).get();
-    const callerUser = callerUserSnap.exists ? callerUserSnap.data() : {};
-    const isAdminUser = callerUser?.role === "admin";
+    const callerRole = await getUserRole(callerUid);
+    const isAdminUser = callerRole === "admin";
     const managedBy = venue?.managedBy;
     const isVenueManager =
       managedBy === callerUid ||

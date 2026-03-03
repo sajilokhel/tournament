@@ -62,17 +62,13 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import admin from "firebase-admin";
-import { db, isAdminInitialized } from "@/lib/firebase-admin";
+import { db } from "@/lib/firebase-admin";
 import { holdSlot } from "@/lib/slotService.admin";
-import { verifyRequestToken } from "@/lib/server/auth";
+import { verifyRequestToken, requireAdminSDK } from "@/lib/server/auth";
 
 export async function POST(request: NextRequest) {
-  if (!isAdminInitialized()) {
-    return NextResponse.json(
-      { error: "Server not configured" },
-      { status: 500 },
-    );
-  }
+  const sdkError = requireAdminSDK();
+  if (sdkError) return sdkError;
 
   try {
     const body = await request.json();
@@ -127,6 +123,7 @@ export async function POST(request: NextRequest) {
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         bookingExpiresAt: holdExpiresAt,
       };
+      tx.set(bookingRef, bookingData);
 
       // Mirror hold into canonical venueSlots document
       try {
@@ -138,7 +135,7 @@ export async function POST(request: NextRequest) {
             s.date,
             s.startTime,
             uid,
-            result.bookingId,
+            bookingRef.id,
             holdDurationMinutes,
           );
         }

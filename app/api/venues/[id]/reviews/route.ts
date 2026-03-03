@@ -68,20 +68,16 @@
  *   - The average is rounded to one decimal place.
  */
 import { NextResponse } from "next/server";
-import { db, isAdminInitialized } from "@/lib/firebase-admin";
+import { db } from "@/lib/firebase-admin";
 import admin from "firebase-admin";
-import { verifyRequestToken } from "@/lib/server/auth";
+import { verifyRequestToken, requireAdminSDK } from "@/lib/server/auth";
 
 export async function POST(
   req: Request,
   { params }: { params: { id: string } },
 ) {
-  if (!isAdminInitialized()) {
-    return NextResponse.json(
-      { error: "Server configuration error: Admin SDK not initialized" },
-      { status: 500 },
-    );
-  }
+  const sdkError = requireAdminSDK();
+  if (sdkError) return sdkError;
 
   try {
     const venueId = params.id;

@@ -70,19 +70,15 @@
  *     { "ok": true }
  */
 import { NextResponse } from "next/server";
-import { db, isAdminInitialized } from "@/lib/firebase-admin";
-import { verifyRequestToken, getUserRole } from "@/lib/server/auth";
+import { db } from "@/lib/firebase-admin";
+import { verifyRequestToken, getUserRole, requireAdminSDK } from "@/lib/server/auth";
 
 export async function PATCH(
   req: Request,
   { params }: { params: { id: string } },
 ) {
-  if (!isAdminInitialized()) {
-    return NextResponse.json(
-      { error: "Server configuration error: Admin SDK not initialized" },
-      { status: 500 },
-    );
-  }
+  const sdkError = requireAdminSDK();
+  if (sdkError) return sdkError;
 
   try {
     const venueId = params.id;
