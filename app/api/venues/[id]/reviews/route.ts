@@ -68,9 +68,9 @@
  *   - The average is rounded to one decimal place.
  */
 import { NextResponse } from "next/server";
-import { db } from "@/lib/firebase-admin";
-import admin from "firebase-admin";
-import { verifyRequestToken, requireAdminSDK } from "@/lib/server/auth";
+import { db, auth as adminAuth } from "@/lib/firebase-admin";
+import { Firestore, FieldValue, DocumentReference } from "firebase-admin/firestore";
+import { requireAdminSDK, extractBearerToken } from "@/lib/server/auth";
 import { COLLECTIONS } from "@/lib/utils";
 
 export async function POST(
@@ -85,81 +85,110 @@ export async function POST(
     const body = await req.json();
     const { rating, comment, bookingId } = body;
 
-    const authResult = await verifyRequestToken(req);
-    if (authResult instanceof NextResponse) return authResult;
-    const { uid } = authResult;
-    const displayName = "Anonymous"; // name/email not available without full token decode
+    // Verify token and get uid + displayName in one call
+    const token = extractBearerToken(req);
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    let uid: string;
+    let displayName: string;
+    try {
+      const decoded = await adminAuth.verifyIdToken(token);
+      uid = decoded.uid;
+      // decoded.name is set for Google/social sign-ins; fall back to user doc
+      if (decoded.name) {
+        displayName = decoded.name;
+      } else {
+        // Look up user doc for email/password accounts
+        const userDocSnap = await db.collection(COLLECTIONS.USERS).doc(decoded.uid).get();
+        const userData = userDocSnap.data();
+        displayName =
+          userData?.displayName ||
+          decoded.email?.split("@")[0] ||
+          "Anonymous";
+      }
+    } catch {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
 
-    // Transaction: set review doc (merge), add comment subdoc, update venue aggregates, optionally mark booking.rated
-    const reviewDocRef = db.collection(COLLECTIONS.REVIEWS).doc(`${venueId}_${uid}`);
-    const commentRef = db.collection(`venues/${venueId}/comments`).doc();
-    const venueRef = db.collection(COLLECTIONS.VENUES).doc(venueId);
+    const reviewDocRef = db.collection(COLLECTIONS.REVIEWS).doc(`${venueId}_${uid}`) as DocumentReference;
+    const venueRef = db.collection(COLLECTIONS.VENUES).doc(venueId) as DocumentReference;
     const bookingRef = bookingId
       ? db.collection(COLLECTIONS.BOOKINGS).doc(bookingId)
       : null;
 
-    await db.runTransaction(async (tx) => {
+    await (db as Firestore).runTransaction(async (tx) => {
       const venueSnap = await tx.get(venueRef);
-      if (!venueSnap.exists) {
-        throw new Error("Venue does not exist");
-      }
-
-      const venueData = venueSnap.data() as any;
-      const currentRating = venueData.averageRating || 0;
-      const currentCount = venueData.reviewCount || 0;
-
       const existingReviewSnap = await tx.get(reviewDocRef);
-      const existingRating = existingReviewSnap.exists
-        ? (existingReviewSnap.data() as any).rating || 0
-        : null;
 
+      if (!venueSnap.exists) throw new Error("Venue does not exist");
+
+      const venueData = venueSnap.data() as Record<string, any>;
+      const currentRating: number = venueData.averageRating || 0;
+      const currentCount: number = venueData.reviewCount || 0;
+
+      const isNewReview = !existingReviewSnap.exists;
+      const existingData = existingReviewSnap.exists
+        ? (existingReviewSnap.data() as Record<string, any>)
+        : null;
+      const existingRating: number = existingData?.rating || 0;
+      // commentId stored in review doc so we update the same comment, not create a new one
+      const existingCommentId: string | null = existingData?.commentId || null;
+
+      // Recompute aggregate rating
       let newCount = currentCount;
       let newAverage = currentRating;
-
-      if (existingRating === null) {
-        // New review
+      if (isNewReview) {
         newCount = currentCount + 1;
         newAverage = (currentRating * currentCount + rating) / newCount;
+      } else if (currentCount > 0) {
+        newAverage = (currentRating * currentCount - existingRating + rating) / currentCount;
       } else {
-        // Update existing review
-        if (currentCount > 0) {
-          newAverage =
-            (currentRating * currentCount - existingRating + rating) /
-            currentCount;
-        } else {
-          newAverage = rating;
-        }
+        newAverage = rating;
       }
-
       const roundedAverage = Math.round(newAverage * 10) / 10;
 
-      const reviewData = {
-        venueId,
-        userId: uid,
-        rating,
-        comment: comment || null,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
+      // Determine comment doc ref: reuse existing one to avoid duplicates
+      const commentRef = existingCommentId
+        ? db.collection(`venues/${venueId}/comments`).doc(existingCommentId)
+        : db.collection(`venues/${venueId}/comments`).doc();
+      const newCommentId = existingCommentId || commentRef.id;
 
       const commentData = {
         text: comment || "",
         author: displayName,
+        userId: uid,
         role: "user",
         rating,
-        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
-      tx.set(reviewDocRef, reviewData, { merge: true });
-      tx.set(commentRef, commentData);
-      tx.update(venueRef, {
-        averageRating: roundedAverage,
-        reviewCount: newCount,
-      });
+      // Review doc: upsert with commentId so future updates target the same comment doc
+      tx.set(
+        reviewDocRef,
+        {
+          venueId,
+          userId: uid,
+          rating,
+          comment: comment || null,
+          commentId: newCommentId,
+          updatedAt: FieldValue.serverTimestamp(),
+          ...(isNewReview && { createdAt: FieldValue.serverTimestamp() }),
+        },
+        { merge: true },
+      );
 
-      if (bookingRef) {
-        tx.update(bookingRef, { rated: true });
+      if (existingCommentId) {
+        // Update the existing comment doc — do NOT create a duplicate
+        tx.update(commentRef, commentData);
+      } else {
+        // First-time review: create the comment doc with createdAt
+        tx.set(commentRef, { ...commentData, createdAt: new Date().toISOString() });
       }
+
+      tx.update(venueRef, { averageRating: roundedAverage, reviewCount: newCount });
+
+      if (bookingRef) tx.update(bookingRef, { rated: true });
     });
 
     return NextResponse.json({ ok: true }, { status: 201 });

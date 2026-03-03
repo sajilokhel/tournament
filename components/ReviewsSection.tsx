@@ -39,63 +39,18 @@ const ReviewsSection = ({ venueId }: ReviewsSectionProps) => {
     const fetchComments = async () => {
       try {
         setIsLoading(true);
-        // Fetch comments subcollection (public display comments)
+        // The `venues/{venueId}/comments` subcollection is the single authoritative
+        // display source. The `reviews` collection is server-side only (rating aggregation).
+        // Fetching from both caused every review to appear twice.
         const commentsQuery = query(
           collection(db, `venues/${venueId}/comments`),
           orderBy("createdAt", "desc")
         );
         const commentsSnapshot = await getDocs(commentsQuery);
-        const commentsList = commentsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Comment));
-
-        // Also fetch legacy/alternative reviews documents stored in `reviews` collection
-        // Some entries may exist only in `reviews/{venueId_userId}` and not in the comments subcollection.
-        // We'll include them in the UI by normalizing their shape.
-        const reviewsQuery = query(
-          collection(db, "reviews"),
-          orderBy("createdAt", "desc")
+        const commentsList = commentsSnapshot.docs.map(
+          (d) => ({ id: d.id, ...d.data() } as Comment)
         );
-        const reviewsSnapshot = await getDocs(reviewsQuery);
-        const reviewsForVenue = reviewsSnapshot.docs
-          .map((d) => ({ id: d.id, ...d.data() } as any))
-          .filter((r) => r.venueId === venueId)
-          .map((r) => {
-            // Normalize createdAt: Firestore Timestamps have toDate(), otherwise use string
-            let createdAtStr = '';
-            if (r.createdAt && typeof r.createdAt.toDate === 'function') {
-              createdAtStr = r.createdAt.toDate().toISOString();
-            } else if (typeof r.createdAt === 'string') {
-              createdAtStr = r.createdAt;
-            } else if (r.createdAt && r.createdAt._seconds) {
-              // possible server timestamp shape
-              createdAtStr = new Date(r.createdAt._seconds * 1000).toISOString();
-            } else {
-              createdAtStr = new Date().toISOString();
-            }
-
-            return {
-              id: r.id,
-              text: r.comment || r.commentText || '',
-              author: r.userName || r.author || 'Anonymous',
-              role: r.role || 'user',
-              rating: r.rating,
-              createdAt: createdAtStr,
-            } as Comment;
-          });
-
-        // Merge and dedupe by a combination of id and author
-        const merged = [...reviewsForVenue, ...commentsList];
-        const seen = new Set();
-        const deduped = merged.filter((c) => {
-          const key = `${c.id}:${c.author}:${c.createdAt}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
-
-        // Sort by createdAt desc
-        deduped.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-        setComments(deduped as Comment[]);
+        setComments(commentsList);
       } catch (error) {
         console.error("Error fetching comments:", error);
       } finally {
