@@ -344,30 +344,8 @@ export async function POST(request: NextRequest) {
       // Locate booking: prefer exact match, then prefix-before-last-underscore,
       // then query by `esewaTransactionUuid` field.
       const rawTxn = transactionUuid;
-      let bookingRef = db.collection("bookings").doc(rawTxn);
-      console.log("booking1");
-      let bookingSnap = await bookingRef.get();
+      const { bookingRef, bookingSnap } = await locateBookingByTxn(rawTxn);
 
-      if (!bookingSnap.exists && rawTxn.includes("_")) {
-        const prefixId = rawTxn.substring(0, rawTxn.lastIndexOf("_"));
-        bookingRef = db.collection("bookings").doc(prefixId);
-        bookingSnap = await bookingRef.get();
-      }
-
-      if (!bookingSnap.exists) {
-        const q = await db
-          .collection("bookings")
-          .where("esewaTransactionUuid", "==", rawTxn)
-          .limit(1)
-          .get();
-        if (!q.empty) {
-          bookingSnap = q.docs[0];
-          bookingRef = db.collection("bookings").doc(bookingSnap.id);
-        }
-      }
-      console.log("booking2");
-
-      // Resolve bookingId for later logging/response use (prefer found doc id)
       const bookingId = bookingSnap.exists
         ? bookingRef.id
         : rawTxn.includes("_")

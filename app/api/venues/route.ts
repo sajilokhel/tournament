@@ -77,6 +77,7 @@
 import { NextResponse } from "next/server";
 import { db, auth, isAdminInitialized } from "@/lib/firebase-admin";
 import admin from "firebase-admin";
+import { DEFAULT_TIMEZONE } from "@/lib/utils";
 
 export async function POST(req: Request) {
   if (!isAdminInitialized()) {
@@ -154,7 +155,7 @@ export async function POST(req: Request) {
       venueId: venueRef.id,
       config: {
         ...slotConfig,
-        timezone: slotConfig.timezone || "Asia/Kathmandu",
+        timezone: slotConfig.timezone || DEFAULT_TIMEZONE,
       },
       blocked: [],
       bookings: [],

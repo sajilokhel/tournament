@@ -23,6 +23,7 @@ import type {
   VenueSlots,
   BookingData,
 } from "@/lib/slotService.read";
+import { DEFAULT_TIMEZONE } from "@/lib/utils";
 
 export async function initializeVenueSlots(venueId: string, config: SlotConfig): Promise<void> {
   try {
@@ -31,7 +32,7 @@ export async function initializeVenueSlots(venueId: string, config: SlotConfig):
       venueId,
       config: {
         ...config,
-        timezone: config.timezone || "Asia/Kathmandu",
+        timezone: config.timezone || DEFAULT_TIMEZONE,
       },
       blocked: [],
       bookings: [],

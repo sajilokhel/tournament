@@ -11,6 +11,7 @@ import { logPayment } from '@/lib/paymentLogger';
 import { bookSlot } from '@/lib/slotService.admin';
 import { getVenueSlots } from '@/lib/slotService';
 import { computeAmountsFromVenue } from '@/lib/pricing';
+import { HOLD_DURATION_MS, generateBookingId } from '@/lib/utils';
 
 export async function createBooking(
   token: string,
@@ -21,7 +22,7 @@ export async function createBooking(
 ) {
   try {
     const userId = await verifyUser(token);
-    const bookingId = `booking_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const bookingId = generateBookingId("booking");
 
     // 1. Compute authoritative amount (server-side) using venue config
     const venueRefForPrice = db.collection('venues').doc(venueId);
@@ -88,7 +89,7 @@ export async function createBooking(
       
       // Add new hold
       const now = Timestamp.now();
-      const holdExpiresAt = Timestamp.fromMillis(now.toMillis() + 5 * 60 * 1000); // 5 mins
+      const holdExpiresAt = Timestamp.fromMillis(now.toMillis() + HOLD_DURATION_MS);
       
       const heldSlot = {
         date,
@@ -118,7 +119,7 @@ export async function createBooking(
       endTime,
       status: "pending_payment",
       bookingType: "website",
-      holdExpiresAt: Timestamp.fromMillis(Date.now() + 5 * 60 * 1000),
+      holdExpiresAt: Timestamp.fromMillis(Date.now() + HOLD_DURATION_MS),
       createdAt: FieldValue.serverTimestamp(),
       amount,
       advanceAmount,
@@ -279,7 +280,7 @@ export async function createPhysicalBooking(
     if (!isManager) throw new Error("Unauthorized");
     
     const userId = await verifyUser(token); // Manager's ID
-    const bookingId = `physical_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const bookingId = generateBookingId("physical");
     
     // 1. Book Slot in VenueSlots (Transaction)
     const venueRef = db.collection("venueSlots").doc(venueId);
@@ -343,7 +344,7 @@ export async function createPhysicalBooking(
       paymentStatus: "full", // Physical bookings are usually paid or handled on spot
     };
     
-    await db.collection("bookings").add(bookingData);
+    await db.collection("bookings").doc(bookingId).set(bookingData);
     
     revalidatePath(`/venue/${venueId}`);
     return { success: true };

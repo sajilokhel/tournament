@@ -1,6 +1,7 @@
 import "server-only";
 import admin from "firebase-admin";
 import { isAdminInitialized, db as adminDb } from "@/lib/firebase-admin";
+import { DEFAULT_TIMEZONE, generateBookingId } from "@/lib/utils";
 
 if (!isAdminInitialized()) {
   console.warn("Firebase Admin not initialized - slotService.admin will not work");
@@ -87,7 +88,7 @@ export async function initializeVenueSlots(
     venueId,
     config: {
       ...config,
-      timezone: config.timezone || "Asia/Kathmandu",
+      timezone: config.timezone || DEFAULT_TIMEZONE,
     },
     blocked: [],
     bookings: [],
@@ -228,7 +229,7 @@ export async function reserveSlot(
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  const bookingId = `physical_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const bookingId = generateBookingId("physical");
   return bookingId;
 }
 

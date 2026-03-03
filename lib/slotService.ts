@@ -17,6 +17,7 @@ import {
   DocumentReference,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { DEFAULT_TIMEZONE } from "@/lib/utils";
 
 // ============================================================================
 // Type Definitions
@@ -191,7 +192,7 @@ export async function initializeVenueSlots(
       venueId,
       config: {
         ...config,
-        timezone: config.timezone || "Asia/Kathmandu",
+        timezone: config.timezone || DEFAULT_TIMEZONE,
       },
       blocked: [],
       bookings: [],
