@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/firebase-admin";
 import { verifyRequestToken, requireAdminSDK, getUserRole } from "@/lib/server/auth";
 import crypto from "crypto";
+import { COLLECTIONS } from "@/lib/utils";
 
 // POST /api/invoices/verify
 export async function POST(request: NextRequest) {

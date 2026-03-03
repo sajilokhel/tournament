@@ -1,6 +1,7 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { auth, db, isAdminInitialized } from "@/lib/firebase-admin";
+import { COLLECTIONS } from "@/lib/utils";
 
 /**
  * Guard: return a 500 NextResponse if the Admin SDK is not initialised, else null.

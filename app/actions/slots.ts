@@ -4,6 +4,7 @@ import { db } from "@/lib/firebase-admin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { revalidatePath } from "next/cache";
 import { verifyManager, verifyUser } from "@/lib/server/auth";
+import { COLLECTIONS } from "@/lib/utils";
 
 export async function releaseHold(venueId: string, date: string, startTime: string) {
   try {

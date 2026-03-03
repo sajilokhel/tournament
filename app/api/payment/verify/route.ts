@@ -148,6 +148,7 @@ import admin from "firebase-admin";
 import { bookSlot } from "@/lib/slotService.admin";
 import { logPayment } from "@/lib/paymentLogger";
 import { computeAmountsFromBooking } from "@/lib/pricing/pricing";
+import { COLLECTIONS } from "@/lib/utils";
 
 interface EsewaVerificationResponse {
   product_code: string;

@@ -73,6 +73,7 @@ import admin from "firebase-admin";
 import { db } from "@/lib/firebase-admin";
 import { unbookSlot } from "@/lib/slotService.admin";
 import { verifyRequestToken, isManagerOrAdmin, requireAdminSDK } from "@/lib/server/auth";
+import { COLLECTIONS } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   const sdkError = requireAdminSDK();
