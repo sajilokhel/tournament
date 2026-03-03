@@ -18,6 +18,7 @@ import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
 import * as fs from "fs";
 import * as path from "path";
+import { COLLECTIONS } from "@/lib/utils";
 
 // ============================================================================
 // Configuration
@@ -116,7 +117,7 @@ async function backupOldSlots(db: FirebaseFirestore.Firestore): Promise<string> 
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const backupFile = path.join(BACKUP_DIR, `slots-backup-${timestamp}.json`);
   
-  const slotsSnapshot = await db.collection("slots").get();
+  const slotsSnapshot = await db.collection(COLLECTIONS.SLOTS).get();
   const slots = slotsSnapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
@@ -274,7 +275,7 @@ async function migrateVenue(
     console.log("   🔍 DRY RUN - Would create venueSlots document");
   } else {
     // Create new document
-    await db.collection("venueSlots").doc(venueId).set({
+    await db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId).set({
       venueId,
       config,
       blocked: venueData.blocked,
@@ -323,7 +324,7 @@ async function migrate() {
   }
   
   console.log("\n📥 Fetching old slots...");
-  const slotsSnapshot = await db.collection("slots").get();
+  const slotsSnapshot = await db.collection(COLLECTIONS.SLOTS).get();
   stats.totalSlots = slotsSnapshot.size;
   
   console.log(`Found ${stats.totalSlots} slots to migrate`);

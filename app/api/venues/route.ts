@@ -77,7 +77,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase-admin";
 import admin from "firebase-admin";
-import { DEFAULT_TIMEZONE } from "@/lib/utils";
+import { DEFAULT_TIMEZONE, COLLECTIONS } from "@/lib/utils";
 import { verifyRequestToken, getUserRole, requireAdminSDK } from "@/lib/server/auth";
 
 export async function POST(req: Request) {
@@ -120,7 +120,7 @@ export async function POST(req: Request) {
     }
 
     // Create venue doc (server-side)
-    const venueRef = await db.collection("venues").add({
+    const venueRef = await db.collection(COLLECTIONS.VENUES).add({
       name: name.trim(),
       description: description ? description.trim() : null,
       latitude: latitude || null,
@@ -147,7 +147,7 @@ export async function POST(req: Request) {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    await db.collection("venueSlots").doc(venueRef.id).set(venueSlots);
+    await db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueRef.id).set(venueSlots);
 
     return NextResponse.json({ id: venueRef.id }, { status: 201 });
   } catch (err: any) {

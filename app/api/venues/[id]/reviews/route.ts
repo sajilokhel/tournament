@@ -71,6 +71,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase-admin";
 import admin from "firebase-admin";
 import { verifyRequestToken, requireAdminSDK } from "@/lib/server/auth";
+import { COLLECTIONS } from "@/lib/utils";
 
 export async function POST(
   req: Request,
@@ -90,11 +91,11 @@ export async function POST(
     const displayName = "Anonymous"; // name/email not available without full token decode
 
     // Transaction: set review doc (merge), add comment subdoc, update venue aggregates, optionally mark booking.rated
-    const reviewDocRef = db.collection("reviews").doc(`${venueId}_${uid}`);
+    const reviewDocRef = db.collection(COLLECTIONS.REVIEWS).doc(`${venueId}_${uid}`);
     const commentRef = db.collection(`venues/${venueId}/comments`).doc();
-    const venueRef = db.collection("venues").doc(venueId);
+    const venueRef = db.collection(COLLECTIONS.VENUES).doc(venueId);
     const bookingRef = bookingId
-      ? db.collection("bookings").doc(bookingId)
+      ? db.collection(COLLECTIONS.BOOKINGS).doc(bookingId)
       : null;
 
     await db.runTransaction(async (tx) => {

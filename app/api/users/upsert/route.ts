@@ -51,6 +51,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/firebase-admin";
 import { verifyRequestToken, getUserRole, requireAdminSDK } from "@/lib/server/auth";
+import { COLLECTIONS } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   const sdkError = requireAdminSDK();
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const userRef = db.collection("users").doc(uid);
+    const userRef = db.collection(COLLECTIONS.USERS).doc(uid);
     const snap = await userRef.get();
 
     const base: any = {

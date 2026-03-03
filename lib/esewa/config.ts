@@ -52,8 +52,14 @@ export const ESEWA_MERCHANT_CODE =
  *
  * IMPORTANT: Never expose this on the client side!
  */
-export const ESEWA_SECRET_KEY =
-  process.env.ESEWA_SECRET_KEY || "8gBm/:&EnhH.1/q";
+const _rawSecretKey = process.env.ESEWA_SECRET_KEY;
+if (isProduction && !_rawSecretKey) {
+  throw new Error(
+    "[eSewa] ESEWA_SECRET_KEY environment variable is required in production. " +
+    "Set it in your Vercel/hosting environment variables."
+  );
+}
+export const ESEWA_SECRET_KEY = _rawSecretKey || "8gBm/:&EnhH.1/q";
 
 // ============================================================================
 // Application URLs (Callbacks)

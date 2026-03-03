@@ -61,8 +61,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/firebase-admin"; // Use Admin SDK
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { COLLECTIONS } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
+  // Protect cron endpoint when CRON_SECRET is configured.
+  // Set CRON_SECRET in Vercel environment variables and pass it as
+  //   Authorization: Bearer <CRON_SECRET>
+  // when invoking this endpoint externally or from a scheduler.
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
   try {
     console.log("🔄 Starting cron job: Maintenance tasks");
 
@@ -73,7 +86,7 @@ export async function GET(req: NextRequest) {
     };
 
     // Get all venue IDs from venueSlots collection
-    const venueSlotsSnapshot = await db.collection("venueSlots").get();
+    const venueSlotsSnapshot = await db.collection(COLLECTIONS.VENUE_SLOTS).get();
 
     for (const venueDoc of venueSlotsSnapshot.docs) {
       const venueId = venueDoc.id;

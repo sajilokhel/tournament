@@ -85,6 +85,7 @@ import {
   getFailureUrl,
 } from "@/lib/esewa/config";
 import { requireAdminSDK } from "@/lib/server/auth";
+import { COLLECTIONS } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   const sdkError = requireAdminSDK();
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Read booking
-    const bookingRef = db.collection("bookings").doc(bookingId);
+    const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc(bookingId);
     const bookingSnap = await bookingRef.get();
     if (!bookingSnap.exists) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
 
     // Persist esewaTransactionUuid on booking and attach to held entry in venueSlots atomically
     if (booking.venueId) {
-      const venueRef = db.collection("venueSlots").doc(booking.venueId);
+      const venueRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(booking.venueId);
       await db.runTransaction(async (t) => {
         const vSnap = await t.get(venueRef);
         if (!vSnap.exists) {

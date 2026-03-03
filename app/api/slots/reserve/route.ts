@@ -65,6 +65,7 @@ import admin from "firebase-admin";
 import { db } from "@/lib/firebase-admin";
 import { reserveSlot } from "@/lib/slotService.admin";
 import { verifyRequestToken, isManagerOrAdmin, requireAdminSDK } from "@/lib/server/auth";
+import { COLLECTIONS } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   const sdkError = requireAdminSDK();
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const result = await db.runTransaction(async (tx) => {
-      const slotRef = db.collection("slots").doc(slotId);
+      const slotRef = db.collection(COLLECTIONS.SLOTS).doc(slotId);
       const slotSnap = await tx.get(slotRef);
       if (!slotSnap.exists) throw { status: 404, message: "Slot not found" };
 
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
       if (status === "BOOKED")
         throw { status: 409, message: "Slot already booked" };
 
-      const bookingRef = db.collection("bookings").doc();
+      const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc();
       const bookingData: any = {
         venueId,
         slotId,
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
 
     // Also update the canonical venueSlots document (server-side helper)
     try {
-      const slotAfter = await db.collection("slots").doc(slotId).get();
+      const slotAfter = await db.collection(COLLECTIONS.SLOTS).doc(slotId).get();
       if (slotAfter.exists) {
         const s = slotAfter.data();
         await reserveSlot(

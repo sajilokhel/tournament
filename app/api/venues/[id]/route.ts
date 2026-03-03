@@ -72,6 +72,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase-admin";
 import { verifyRequestToken, getUserRole, requireAdminSDK } from "@/lib/server/auth";
+import { COLLECTIONS } from "@/lib/utils";
 
 export async function PATCH(
   req: Request,
@@ -88,7 +89,7 @@ export async function PATCH(
     const { uid } = authResult;
 
     // Fetch venue to check manager
-    const venueRef = db.collection("venues").doc(venueId);
+    const venueRef = db.collection(COLLECTIONS.VENUES).doc(venueId);
     const venueSnap = await venueRef.get();
     if (!venueSnap.exists)
       return NextResponse.json({ error: "Venue not found" }, { status: 404 });

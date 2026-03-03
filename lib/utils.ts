@@ -23,6 +23,7 @@ export const COLLECTIONS = {
   VENUE_SLOTS: "venueSlots",
   USERS: "users",
   SLOTS: "slots",
+  REVIEWS: "reviews",
 } as const;
 
 /**
