@@ -422,7 +422,7 @@ const ManagerBookingsPage = () => {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          {(booking.status === "CONFIRMED" || booking.status === "confirmed") && (
+                          {(booking.status.toLowerCase() === "confirmed") && (
                             <>
                               {dueAmount > 0 && (
                                 <Button 
@@ -520,7 +520,7 @@ const ManagerBookingsPage = () => {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              {(booking.status === "CONFIRMED" || booking.status === "confirmed") && (
+                              {(booking.status.toLowerCase() === "confirmed") && (
                                 <>
                                   {dueAmount > 0 && (
                                     <Button 

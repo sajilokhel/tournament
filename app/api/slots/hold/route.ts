@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     const { uid } = authResult;
 
     const result = await db.runTransaction(async (tx) => {
-      const slotRef = db.collection("slots").doc(slotId);
+      const slotRef = db.collection(COLLECTIONS.SLOTS).doc(slotId);
       const slotSnap = await tx.get(slotRef);
       if (!slotSnap.exists) throw { status: 404, message: "Slot not found" };
 
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         now.toMillis() + holdDurationMinutes * 60 * 1000,
       );
 
-      const bookingRef = db.collection("bookings").doc();
+      const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc();
       const bookingData: any = {
         venueId,
         userId: uid,
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
 
       // Mirror hold into canonical venueSlots document
       try {
-        const slotAfter = await db.collection("slots").doc(slotId).get();
+        const slotAfter = await db.collection(COLLECTIONS.SLOTS).doc(slotId).get();
         if (slotAfter.exists) {
           const s = slotAfter.data();
           await holdSlot(

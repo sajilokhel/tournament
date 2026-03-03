@@ -94,8 +94,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const txResult = await db.runTransaction(async (tx) => {
-      const bookingRef = db.collection("bookings").doc(bookingId);
-      const slotRef = db.collection("slots").doc(slotId);
+      const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc(bookingId);
+      const slotRef = db.collection(COLLECTIONS.SLOTS).doc(slotId);
 
       const bookingSnap = await tx.get(bookingRef);
       if (!bookingSnap.exists)

@@ -55,6 +55,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { calculateCommission, getVenueCommission } from "@/lib/commission";
+import { DEFAULT_CANCELLATION_HOURS } from "@/lib/utils";
 
 interface PaymentRecord {
   id: string;
@@ -113,7 +114,7 @@ export default function ManagerPaymentsPage() {
         setManagerData(userDoc.data());
       }
       
-      const limitHours = userDoc.exists() ? (userDoc.data().cancellationHoursLimit || 5) : 5;
+      const limitHours = userDoc.exists() ? (userDoc.data().cancellationHoursLimit || DEFAULT_CANCELLATION_HOURS) : DEFAULT_CANCELLATION_HOURS;
 
       // 2. Fetch Venues managed by this user
       const venuesQuery = query(

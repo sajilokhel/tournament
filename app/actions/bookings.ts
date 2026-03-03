@@ -11,7 +11,7 @@ import { logPayment } from '@/lib/paymentLogger';
 import { bookSlot } from '@/lib/slotService.admin';
 import { getVenueSlots } from '@/lib/slotService';
 import { computeAmountsFromVenue } from '@/lib/pricing';
-import { HOLD_DURATION_MS, generateBookingId } from '@/lib/utils';
+import { HOLD_DURATION_MS, generateBookingId, COLLECTIONS } from '@/lib/utils';
 
 export async function createBooking(
   token: string,
@@ -25,7 +25,7 @@ export async function createBooking(
     const bookingId = generateBookingId("booking");
 
     // 1. Compute authoritative amount (server-side) using venue config
-    const venueRefForPrice = db.collection('venues').doc(venueId);
+    const venueRefForPrice = db.collection(COLLECTIONS.VENUES).doc(venueId);
     const venueSnapForPrice = await venueRefForPrice.get();
     if (!venueSnapForPrice.exists) {
       throw new Error('Venue not found for pricing');
@@ -50,7 +50,7 @@ export async function createBooking(
     const amountToUse = computed.totalAmount;
 
     // 2. Check availability and Hold Slot (Transaction)
-    const venueRef = db.collection("venueSlots").doc(venueId);
+    const venueRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId);
     
     await db.runTransaction(async (t) => {
       const doc = await t.get(venueRef);
@@ -127,7 +127,7 @@ export async function createBooking(
       paymentStatus: "pending", // pending, partial, full
     };
     
-    const bookingRef = db.collection("bookings").doc(bookingId);
+    const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc(bookingId);
     await bookingRef.set(bookingData);
     
     revalidatePath(`/venue/${venueId}`);
@@ -143,7 +143,7 @@ export async function cancelBooking(token: string, bookingId: string) {
   try {
     const userId = await verifyUser(token);
     
-    const bookingRef = db.collection("bookings").doc(bookingId);
+    const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc(bookingId);
     const bookingDoc = await bookingRef.get();
     
     if (!bookingDoc.exists) {
@@ -162,8 +162,8 @@ export async function cancelBooking(token: string, bookingId: string) {
       const diffMs = bookingDateTime.getTime() - now.getTime();
       const diffHours = diffMs / (1000 * 60 * 60);
       
-      if (diffHours < 5) {
-        throw new Error("Cannot cancel within 5 hours of booking time");
+      if (diffHours < DEFAULT_CANCELLATION_HOURS) {
+        throw new Error(`Cannot cancel within ${DEFAULT_CANCELLATION_HOURS} hours of booking time`);
       }
     }
     
@@ -175,7 +175,7 @@ export async function cancelBooking(token: string, bookingId: string) {
     
     // Release slot if it was confirmed or held
     if (booking.venueId && booking.date && booking.startTime) {
-      const venueRef = db.collection("venueSlots").doc(booking.venueId);
+      const venueRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(booking.venueId);
       
       await db.runTransaction(async (t) => {
         const doc = await t.get(venueRef);
@@ -214,7 +214,7 @@ export async function releaseHold(token: string, bookingId: string) {
   try {
     const userId = await verifyUser(token);
 
-    const bookingRef = db.collection("bookings").doc(bookingId);
+    const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc(bookingId);
     const bookingDoc = await bookingRef.get();
 
     if (!bookingDoc.exists) {
@@ -239,7 +239,7 @@ export async function releaseHold(token: string, bookingId: string) {
 
     // Release the hold from venueSlots
     if (booking.venueId && booking.date && booking.startTime) {
-      const venueRef = db.collection("venueSlots").doc(booking.venueId);
+      const venueRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(booking.venueId);
 
       await db.runTransaction(async (t) => {
         const docSnap = await t.get(venueRef);
@@ -283,7 +283,7 @@ export async function createPhysicalBooking(
     const bookingId = generateBookingId("physical");
     
     // 1. Book Slot in VenueSlots (Transaction)
-    const venueRef = db.collection("venueSlots").doc(venueId);
+    const venueRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId);
     
     await db.runTransaction(async (t) => {
       const doc = await t.get(venueRef);
@@ -344,7 +344,7 @@ export async function createPhysicalBooking(
       paymentStatus: "full", // Physical bookings are usually paid or handled on spot
     };
     
-    await db.collection("bookings").doc(bookingId).set(bookingData);
+    await db.collection(COLLECTIONS.BOOKINGS).doc(bookingId).set(bookingData);
     
     revalidatePath(`/venue/${venueId}`);
     return { success: true };
@@ -365,7 +365,7 @@ export async function unbookBooking(
     const isManager = await verifyManager(token, venueId);
     if (!isManager) throw new Error("Unauthorized");
     
-    const venueRef = db.collection("venueSlots").doc(venueId);
+    const venueRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId);
     
     await db.runTransaction(async (t) => {
       const doc = await t.get(venueRef);
@@ -393,7 +393,7 @@ export async function unbookBooking(
 export async function expireBooking(token: string, bookingId: string, options?: { force?: boolean }) {
   try {
     const userId = await verifyUser(token);
-    const bookingRef = db.collection("bookings").doc(bookingId);
+    const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc(bookingId);
     const bookingDoc = await bookingRef.get();
 
     if (!bookingDoc.exists) {
@@ -498,7 +498,7 @@ export async function expireBooking(token: string, bookingId: string, options?: 
     });
 
     // Also release the hold
-    const venueRef = db.collection('venueSlots').doc(bookingData.venueId);
+    const venueRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(bookingData.venueId);
     await db.runTransaction(async (t) => {
       const doc = await t.get(venueRef);
       if (!doc.exists) return;
@@ -524,7 +524,7 @@ export async function expireBooking(token: string, bookingId: string, options?: 
 
 export async function managerCancelBooking(token: string, bookingId: string) {
   try {
-    const bookingRef = db.collection("bookings").doc(bookingId);
+    const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc(bookingId);
     const bookingDoc = await bookingRef.get();
 
     if (!bookingDoc.exists) {
@@ -550,7 +550,7 @@ export async function managerCancelBooking(token: string, bookingId: string) {
 
     // Release slot from venueSlots
     if (booking.date && booking.startTime) {
-      const venueRef = db.collection("venueSlots").doc(booking.venueId);
+      const venueRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(booking.venueId);
       
       await db.runTransaction(async (t) => {
         const doc = await t.get(venueRef);
@@ -590,7 +590,7 @@ export async function markBookingAsPaid(
   paymentMethod: "cash" | "online"
 ) {
   try {
-    const bookingRef = db.collection("bookings").doc(bookingId);
+    const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc(bookingId);
     const bookingDoc = await bookingRef.get();
 
     if (!bookingDoc.exists) {

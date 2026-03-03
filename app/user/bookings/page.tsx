@@ -153,7 +153,7 @@ const UserBookingsPage = () => {
                 },
                 body: JSON.stringify({
                   transactionUuid: effectiveTxn,
-                  productCode: "EPAYTEST",
+                  productCode: process.env.NEXT_PUBLIC_ESEWA_MERCHANT_CODE || "EPAYTEST",
                   totalAmount: advanceAmountForVerify,
                 }),
               });

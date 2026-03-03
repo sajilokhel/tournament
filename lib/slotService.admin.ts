@@ -1,7 +1,7 @@
 import "server-only";
 import admin from "firebase-admin";
 import { isAdminInitialized, db as adminDb } from "@/lib/firebase-admin";
-import { DEFAULT_TIMEZONE, generateBookingId } from "@/lib/utils";
+import { DEFAULT_TIMEZONE, generateBookingId, COLLECTIONS } from "@/lib/utils";
 
 if (!isAdminInitialized()) {
   console.warn("Firebase Admin not initialized - slotService.admin will not work");
@@ -33,7 +33,7 @@ export async function bookSlot(
   const db = adminDb as admin.firestore.Firestore;
 
   await db.runTransaction(async (tx) => {
-    const docRef = db.collection("venueSlots").doc(venueId);
+    const docRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId);
     const docSnap = await tx.get(docRef);
 
     if (!docSnap.exists) {
@@ -97,7 +97,7 @@ export async function initializeVenueSlots(
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 
-  await db.collection("venueSlots").doc(venueId).set(venueSlots);
+  await db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId).set(venueSlots);
 }
 
 export async function holdSlot(
@@ -112,7 +112,7 @@ export async function holdSlot(
   const db = adminDb as admin.firestore.Firestore;
 
   await db.runTransaction(async (tx) => {
-    const docRef = db.collection("venueSlots").doc(venueId);
+    const docRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId);
     const docSnap = await tx.get(docRef);
     if (!docSnap.exists) throw new Error("Venue slots not found");
 
@@ -162,7 +162,7 @@ export async function releaseHold(
   const db = adminDb as admin.firestore.Firestore;
 
   await db.runTransaction(async (tx) => {
-    const docRef = db.collection("venueSlots").doc(venueId);
+    const docRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId);
     const docSnap = await tx.get(docRef);
     if (!docSnap.exists) throw new Error("Venue slots not found");
 
@@ -182,7 +182,7 @@ export async function cleanExpiredHolds(venueId: string): Promise<number> {
   let removedCount = 0;
 
   await db.runTransaction(async (tx) => {
-    const docRef = db.collection("venueSlots").doc(venueId);
+    const docRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId);
     const docSnap = await tx.get(docRef);
     if (!docSnap.exists) return;
 
@@ -224,7 +224,7 @@ export async function reserveSlot(
     reservedAt: admin.firestore.Timestamp.now(),
   };
 
-  await db.collection("venueSlots").doc(venueId).update({
+  await db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId).update({
     reserved: admin.firestore.FieldValue.arrayUnion(reservedSlot),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
@@ -242,7 +242,7 @@ export async function unbookSlot(
   const db = adminDb as admin.firestore.Firestore;
 
   await db.runTransaction(async (tx) => {
-    const docRef = db.collection("venueSlots").doc(venueId);
+    const docRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId);
     const docSnap = await tx.get(docRef);
     if (!docSnap.exists) throw new Error("Venue slots not found");
 
@@ -274,7 +274,7 @@ export async function blockSlot(
   if (reason) blockedSlot.reason = reason;
   if (blockedBy) blockedSlot.blockedBy = blockedBy;
 
-  await db.collection("venueSlots").doc(venueId).update({
+  await db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId).update({
     blocked: admin.firestore.FieldValue.arrayUnion(blockedSlot),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
@@ -289,7 +289,7 @@ export async function unblockSlot(
   const db = adminDb as admin.firestore.Firestore;
 
   await db.runTransaction(async (tx) => {
-    const docRef = db.collection("venueSlots").doc(venueId);
+    const docRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId);
     const docSnap = await tx.get(docRef);
     if (!docSnap.exists) throw new Error("Venue slots not found");
 
@@ -307,7 +307,7 @@ export async function updateSlotConfig(venueId: string, config: any): Promise<vo
   if (!isAdminInitialized()) throw new Error("Admin SDK not initialized");
   const db = adminDb as admin.firestore.Firestore;
 
-  await db.collection("venueSlots").doc(venueId).update({
+  await db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId).update({
     config,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
@@ -339,12 +339,12 @@ export async function generateSlots(
     for (let hour = startHour; hour < endHour; hour += Math.max(1, Math.floor(slotDuration / 60))) {
       const hourString = `${hour.toString().padStart(2, "0")}:00`;
       const slotId = `${venueId}_${dateString}_${hourString.replace(":", "")}`;
-      const slotRef = db.collection("slots").doc(slotId);
+      const slotRef = db.collection(COLLECTIONS.SLOTS).doc(slotId);
       batch.set(slotRef, { groundId: venueId, date: dateString, startTime: hourString, status: "AVAILABLE" }, { merge: true });
     }
   }
 
-  const venueRef = db.collection("venues").doc(venueId);
+  const venueRef = db.collection(COLLECTIONS.VENUES).doc(venueId);
   batch.update(venueRef, { startTime, endTime });
 
   await batch.commit();

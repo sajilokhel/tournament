@@ -105,6 +105,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/firebase-admin"; // Use Admin SDK
 import { FieldValue } from "firebase-admin/firestore";
+import { DEFAULT_CANCELLATION_HOURS, COLLECTIONS } from "@/lib/utils";
 
 export async function POST(
   request: NextRequest,
@@ -116,7 +117,7 @@ export async function POST(
     const body = await request.json();
     const { userId } = body;
 
-    const bookingRef = db.collection("bookings").doc(id);
+    const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc(id);
     const bookingSnap = await bookingRef.get();
 
     if (!bookingSnap.exists) {
@@ -131,14 +132,14 @@ export async function POST(
     }
 
     // Fetch venue to get manager settings
-    const venueRef = db.collection("venues").doc(booking.venueId);
+    const venueRef = db.collection(COLLECTIONS.VENUES).doc(booking.venueId);
     const venueSnap = await venueRef.get();
-    let cancellationLimit = 5; // Default
+    let cancellationLimit = DEFAULT_CANCELLATION_HOURS; // Default
 
     if (venueSnap.exists) {
       const venue = venueSnap.data();
       if (venue?.managedBy) {
-        const managerRef = db.collection("users").doc(venue.managedBy);
+        const managerRef = db.collection(COLLECTIONS.USERS).doc(venue.managedBy);
         const managerSnap = await managerRef.get();
         if (managerSnap.exists) {
           const managerData = managerSnap.data();
@@ -176,7 +177,7 @@ export async function POST(
 
     // Release slot
     if (booking.venueId && booking.date && booking.startTime) {
-      const venueSlotsRef = db.collection("venueSlots").doc(booking.venueId);
+      const venueSlotsRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(booking.venueId);
 
       await db.runTransaction(async (t) => {
         const doc = await t.get(venueSlotsRef);

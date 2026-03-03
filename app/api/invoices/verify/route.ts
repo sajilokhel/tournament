@@ -74,17 +74,17 @@ export async function POST(request: NextRequest) {
       );
 
     // Fetch booking
-    const bookingRef = db.collection("bookings").doc(bookingId);
+    const bookingRef = db.collection(COLLECTIONS.BOOKINGS).doc(bookingId);
     const bookingSnap = await bookingRef.get();
     if (!bookingSnap.exists)
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     const booking = bookingSnap.data() as any;
 
     // Fetch venue and owner
-    const venueRef = db.collection("venues").doc(booking.venueId);
+    const venueRef = db.collection(COLLECTIONS.VENUES).doc(booking.venueId);
     const venueSnap = await venueRef.get();
     const venue = venueSnap.exists ? venueSnap.data() : null;
-    const ownerRef = db.collection("users").doc(booking.userId);
+    const ownerRef = db.collection(COLLECTIONS.USERS).doc(booking.userId);
     const ownerSnap = await ownerRef.get();
     const owner = ownerSnap.exists ? ownerSnap.data() : null;
 

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
+import { DEFAULT_CANCELLATION_HOURS } from "@/lib/utils";
 import {
   collection,
   getDocs,
@@ -96,8 +97,8 @@ export default function ManagerDetailsPage() {
         const userData = userDoc.data();
         setManager({ id: userDoc.id, ...userData });
         
-        // Set cancellation limit from user data or default to 5
-        const limit = userData.cancellationHoursLimit !== undefined ? userData.cancellationHoursLimit : 5;
+        // Set cancellation limit from user data or default
+        const limit = userData.cancellationHoursLimit !== undefined ? userData.cancellationHoursLimit : DEFAULT_CANCELLATION_HOURS;
         setCancellationLimit(limit);
 
         // 2. Fetch Venues managed by this user

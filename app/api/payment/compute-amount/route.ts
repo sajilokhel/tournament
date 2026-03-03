@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch venue to get pricePerHour
-    const venueRef = db.collection("venues").doc(String(venueId));
+    const venueRef = db.collection(COLLECTIONS.VENUES).doc(String(venueId));
     const venueSnap = await venueRef.get();
     if (!venueSnap.exists) {
       return NextResponse.json({ error: "Venue not found" }, { status: 404 });

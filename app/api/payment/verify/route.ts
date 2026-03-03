@@ -169,7 +169,7 @@ function generateVerificationSignature(transactionUuid: string): string {
 
 // Helper: locate booking by transaction UUID with multiple strategies.
 async function locateBookingByTxn(rawTxn: string) {
-  const coll = db.collection("bookings");
+  const coll = db.collection(COLLECTIONS.BOOKINGS);
   let bookingRef = coll.doc(rawTxn);
   let bookingSnap = await bookingRef.get();
 

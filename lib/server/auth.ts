@@ -30,7 +30,7 @@ export async function verifyManager(token: string, venueId: string) {
   try {
     const userId = await verifyUser(token);
 
-    const venueDoc = await db.collection("venues").doc(venueId).get();
+    const venueDoc = await db.collection(COLLECTIONS.VENUES).doc(venueId).get();
     if (!venueDoc.exists) return false;
 
     const venueData = venueDoc.data();
@@ -76,7 +76,7 @@ export async function verifyRequestToken(
  */
 export async function isManagerOrAdmin(uid: string): Promise<boolean> {
   try {
-    const doc = await db.collection("users").doc(uid).get();
+    const doc = await db.collection(COLLECTIONS.USERS).doc(uid).get();
     if (!doc.exists) return false;
     const r = doc.data()?.role;
     return r === "manager" || r === "admin";
@@ -91,7 +91,7 @@ export async function isManagerOrAdmin(uid: string): Promise<boolean> {
  */
 export async function getUserRole(uid: string): Promise<string> {
   try {
-    const doc = await db.collection("users").doc(uid).get();
+    const doc = await db.collection(COLLECTIONS.USERS).doc(uid).get();
     return doc.exists ? (doc.data()?.role ?? "user") : "user";
   } catch {
     return "user";

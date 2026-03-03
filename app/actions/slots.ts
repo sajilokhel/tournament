@@ -16,7 +16,7 @@ export async function releaseHold(venueId: string, date: string, startTime: stri
     // For now, let's just proceed. The security comes from the fact that releasing a hold 
     // isn't a destructive action that benefits an attacker much (they can only free up a slot).
     
-    const venueRef = db.collection("venueSlots").doc(venueId);
+    const venueRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId);
     
     await db.runTransaction(async (t) => {
       const doc = await t.get(venueRef);
@@ -58,7 +58,7 @@ export async function blockSlot(
     if (!isManager) throw new Error("Unauthorized");
     const uid = await verifyUser(token);
     
-    const venueRef = db.collection("venueSlots").doc(venueId);
+    const venueRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId);
     
     await db.runTransaction(async (t) => {
       const doc = await t.get(venueRef);
@@ -109,7 +109,7 @@ export async function unblockSlot(
     const isManager = await verifyManager(token, venueId);
     if (!isManager) throw new Error("Unauthorized");
     
-    const venueRef = db.collection("venueSlots").doc(venueId);
+    const venueRef = db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId);
     
     await db.runTransaction(async (t) => {
       const doc = await t.get(venueRef);
