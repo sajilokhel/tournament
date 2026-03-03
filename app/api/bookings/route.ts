@@ -84,6 +84,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createBooking } from "@/app/actions/bookings";
+import { extractBearerToken } from "@/lib/server/auth";
 
 /**
  * POST /api/bookings
@@ -97,11 +98,7 @@ import { createBooking } from "@/app/actions/bookings";
  */
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization") || "";
-    const token = authHeader.startsWith("Bearer ")
-      ? authHeader.split(" ")[1]
-      : null;
-
+    const token = extractBearerToken(request);
     if (!token) {
       return NextResponse.json(
         { error: "Missing Authorization token" },

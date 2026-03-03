@@ -55,21 +55,9 @@
  *     repeatedly without understanding the helper behavior.
  */
 import { NextRequest, NextResponse } from "next/server";
-import admin from "firebase-admin";
-import { db, auth, isAdminInitialized } from "@/lib/firebase-admin";
+import { isAdminInitialized } from "@/lib/firebase-admin";
 import { generateSlots } from "@/lib/slotService.admin";
-
-async function callerIsManagerOrAdmin(uid: string) {
-  try {
-    const doc = await db.collection("users").doc(uid).get();
-    if (!doc.exists) return false;
-    const r = doc.data()?.role;
-    return r === "manager" || r === "admin";
-  } catch (e) {
-    console.warn("Failed to check caller role", e);
-    return false;
-  }
-}
+import { verifyRequestToken, isManagerOrAdmin } from "@/lib/server/auth";
 
 function getSlotId(groundId: string, date: string, startTime: string) {
   return `${groundId}_${date}_${startTime.replace(":", "")}`;
@@ -89,21 +77,11 @@ export async function POST(request: NextRequest) {
     if (!venueId || !startTime || !endTime)
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
-    const authHeader = request.headers.get("authorization") || "";
-    const match = authHeader.match(/^Bearer (.*)$/);
-    if (!match)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const idToken = match[1];
+    const authResult = await verifyRequestToken(request);
+    if (authResult instanceof NextResponse) return authResult;
+    const { uid } = authResult;
 
-    let decoded: admin.auth.DecodedIdToken;
-    try {
-      decoded = await auth.verifyIdToken(idToken);
-    } catch (err) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-
-    const uid = decoded.uid;
-    const allowed = await callerIsManagerOrAdmin(uid);
+    const allowed = await isManagerOrAdmin(uid);
     if (!allowed)
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 

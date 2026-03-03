@@ -1,8 +1,9 @@
 "use server";
 
-import { db, auth } from "@/lib/firebase-admin";
+import { db } from "@/lib/firebase-admin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { revalidatePath } from "next/cache";
+import { verifyManager, verifyUser } from "@/lib/server/auth";
 
 export async function releaseHold(venueId: string, date: string, startTime: string) {
   try {
@@ -57,6 +58,7 @@ export async function blockSlot(
   try {
     const isManager = await verifyManager(token, venueId);
     if (!isManager) throw new Error("Unauthorized");
+    const uid = await verifyUser(token);
     
     const venueRef = db.collection("venueSlots").doc(venueId);
     
@@ -82,7 +84,7 @@ export async function blockSlot(
         startTime,
         reason,
         blockedAt: Timestamp.now(),
-        blockedBy: (await auth.verifyIdToken(token)).uid
+        blockedBy: uid
       };
       
       t.update(venueRef, {

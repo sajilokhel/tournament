@@ -49,8 +49,8 @@
  *     does not accept an explicit `uid` in the request body.
  */
 import { NextRequest, NextResponse } from "next/server";
-import admin from "firebase-admin";
-import { db, auth, isAdminInitialized } from "@/lib/firebase-admin";
+import { db, isAdminInitialized } from "@/lib/firebase-admin";
+import { verifyRequestToken, getUserRole } from "@/lib/server/auth";
 
 export async function POST(request: NextRequest) {
   if (!isAdminInitialized()) {
@@ -65,28 +65,16 @@ export async function POST(request: NextRequest) {
     const { displayName, email, photoURL, role } = body;
 
     // Authenticate user
-    const authHeader = request.headers.get("authorization") || "";
-    const match = authHeader.match(/^Bearer (.*)$/);
-    if (!match)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const idToken = match[1];
-
-    let decoded: admin.auth.DecodedIdToken;
-    try {
-      decoded = await auth.verifyIdToken(idToken);
-    } catch (err) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-
-    const uid = decoded.uid;
+    const authResult = await verifyRequestToken(request);
+    if (authResult instanceof NextResponse) return authResult;
+    const uid = authResult.uid;
 
     // Determine role: default to 'user'. Only allow assigning 'manager' if caller is admin.
     let assignedRole = "user";
     if (role === "manager") {
-      // Check if caller has admin privileges by reading users/{callerUid}
+      // Check if caller has admin privileges
       try {
-        const callerDoc = await db.collection("users").doc(uid).get();
-        const callerRole = callerDoc.exists ? callerDoc.data()?.role : null;
+        const callerRole = await getUserRole(uid);
         if (callerRole === "admin") {
           assignedRole = "manager";
         }

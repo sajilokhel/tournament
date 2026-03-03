@@ -68,8 +68,9 @@
  *   - The average is rounded to one decimal place.
  */
 import { NextResponse } from "next/server";
-import { db, auth, isAdminInitialized } from "@/lib/firebase-admin";
+import { db, isAdminInitialized } from "@/lib/firebase-admin";
 import admin from "firebase-admin";
+import { verifyRequestToken } from "@/lib/server/auth";
 
 export async function POST(
   req: Request,
@@ -87,20 +88,10 @@ export async function POST(
     const body = await req.json();
     const { rating, comment, bookingId } = body;
 
-    const authHeader = req.headers.get("authorization") || "";
-    const token = authHeader.startsWith("Bearer ")
-      ? authHeader.split(" ")[1]
-      : null;
-    if (!token) {
-      return NextResponse.json(
-        { error: "Missing Authorization token" },
-        { status: 401 },
-      );
-    }
-
-    const decoded = await auth.verifyIdToken(token);
-    const uid = decoded.uid;
-    const displayName = decoded.name || decoded.email || "Anonymous";
+    const authResult = await verifyRequestToken(req);
+    if (authResult instanceof NextResponse) return authResult;
+    const { uid } = authResult;
+    const displayName = "Anonymous"; // name/email not available without full token decode
 
     // Transaction: set review doc (merge), add comment subdoc, update venue aggregates, optionally mark booking.rated
     const reviewDocRef = db.collection("reviews").doc(`${venueId}_${uid}`);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, auth, isAdminInitialized } from "@/lib/firebase-admin";
+import { isAdminInitialized } from "@/lib/firebase-admin";
+import { verifyRequestToken } from "@/lib/server/auth";
 import crypto from "crypto";
 
 // POST /api/invoices/verify
@@ -11,22 +12,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const authHeader = request.headers.get("authorization") || "";
-  const token = authHeader.startsWith("Bearer ")
-    ? authHeader.split(" ")[1]
-    : null;
-  if (!token)
-    return NextResponse.json(
-      { error: "Missing authorization token" },
-      { status: 401 },
-    );
-
-  let decoded: any;
-  try {
-    decoded = await auth.verifyIdToken(token);
-  } catch (err) {
-    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-  }
+  const authResult = await verifyRequestToken(request);
+  if (authResult instanceof NextResponse) return authResult;
 
   try {
     const body = await request.json();

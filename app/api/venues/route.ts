@@ -75,9 +75,10 @@
  *     before creating the document.
  */
 import { NextResponse } from "next/server";
-import { db, auth, isAdminInitialized } from "@/lib/firebase-admin";
+import { db, isAdminInitialized } from "@/lib/firebase-admin";
 import admin from "firebase-admin";
 import { DEFAULT_TIMEZONE } from "@/lib/utils";
+import { verifyRequestToken, getUserRole } from "@/lib/server/auth";
 
 export async function POST(req: Request) {
   if (!isAdminInitialized()) {
@@ -89,26 +90,12 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const authHeader = req.headers.get("authorization") || "";
-    const token = authHeader.startsWith("Bearer ")
-      ? authHeader.split(" ")[1]
-      : null;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: "Missing Authorization token" },
-        { status: 401 },
-      );
-    }
-
-    // Verify token and get uid
-    const decoded = await auth.verifyIdToken(token);
-    const uid = decoded.uid;
+    const authResult = await verifyRequestToken(req);
+    if (authResult instanceof NextResponse) return authResult;
+    const { uid } = authResult;
 
     // Check role
-    const userDoc = await db.collection("users").doc(uid).get();
-    const userData = userDoc.exists ? userDoc.data() : null;
-    const role = userData?.role || "user";
+    const role = await getUserRole(uid);
     if (!(role === "manager" || role === "admin")) {
       return NextResponse.json(
         { error: "Insufficient permissions" },

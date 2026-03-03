@@ -70,8 +70,8 @@
  *     { "ok": true }
  */
 import { NextResponse } from "next/server";
-import { db, auth, isAdminInitialized } from "@/lib/firebase-admin";
-import admin from "firebase-admin";
+import { db, isAdminInitialized } from "@/lib/firebase-admin";
+import { verifyRequestToken, getUserRole } from "@/lib/server/auth";
 
 export async function PATCH(
   req: Request,
@@ -87,18 +87,9 @@ export async function PATCH(
   try {
     const venueId = params.id;
     const body = await req.json();
-    const authHeader = req.headers.get("authorization") || "";
-    const token = authHeader.startsWith("Bearer ")
-      ? authHeader.split(" ")[1]
-      : null;
-    if (!token)
-      return NextResponse.json(
-        { error: "Missing Authorization token" },
-        { status: 401 },
-      );
-
-    const decoded = await auth.verifyIdToken(token);
-    const uid = decoded.uid;
+    const authResult = await verifyRequestToken(req);
+    if (authResult instanceof NextResponse) return authResult;
+    const { uid } = authResult;
 
     // Fetch venue to check manager
     const venueRef = db.collection("venues").doc(venueId);
@@ -109,8 +100,7 @@ export async function PATCH(
     const venueData = venueSnap.data() as any;
 
     // Allow if admin or manager of this venue
-    const userDoc = await db.collection("users").doc(uid).get();
-    const userRole = userDoc.exists ? (userDoc.data() as any).role : "user";
+    const userRole = await getUserRole(uid);
     const isAdminUser = userRole === "admin";
     const isManager = venueData.managedBy === uid;
     if (!(isAdminUser || isManager)) {

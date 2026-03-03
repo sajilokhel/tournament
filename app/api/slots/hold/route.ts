@@ -62,8 +62,9 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import admin from "firebase-admin";
-import { db, auth, isAdminInitialized } from "@/lib/firebase-admin";
+import { db, isAdminInitialized } from "@/lib/firebase-admin";
 import { holdSlot } from "@/lib/slotService.admin";
+import { verifyRequestToken } from "@/lib/server/auth";
 
 export async function POST(request: NextRequest) {
   if (!isAdminInitialized()) {
@@ -85,20 +86,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Authenticate user via Bearer token
-    const authHeader = request.headers.get("authorization") || "";
-    const match = authHeader.match(/^Bearer (.*)$/);
-    if (!match)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const idToken = match[1];
-
-    let decoded: admin.auth.DecodedIdToken;
-    try {
-      decoded = await auth.verifyIdToken(idToken);
-    } catch (err) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-
-    const uid = decoded.uid;
+    const authResult = await verifyRequestToken(request);
+    if (authResult instanceof NextResponse) return authResult;
+    const { uid } = authResult;
 
     const result = await db.runTransaction(async (tx) => {
       const slotRef = db.collection("slots").doc(slotId);

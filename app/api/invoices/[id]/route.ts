@@ -72,8 +72,8 @@
  *     should handle the response as a file download.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { db, auth, isAdminInitialized } from "@/lib/firebase-admin";
-import admin from "firebase-admin";
+import { db, isAdminInitialized } from "@/lib/firebase-admin";
+import { verifyRequestToken, getUserRole } from "@/lib/server/auth";
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import crypto from "crypto";
@@ -93,22 +93,9 @@ export async function GET(
   const { id: bookingId } = await params;
 
   // Authenticate caller
-  const authHeader = request.headers.get("authorization") || "";
-  const token = authHeader.startsWith("Bearer ")
-    ? authHeader.split(" ")[1]
-    : null;
-  if (!token)
-    return NextResponse.json(
-      { error: "Missing authorization token" },
-      { status: 401 },
-    );
-
-  let decoded: any;
-  try {
-    decoded = await auth.verifyIdToken(token);
-  } catch (err) {
-    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-  }
+  const authResult = await verifyRequestToken(request as any);
+  if (authResult instanceof NextResponse) return authResult;
+  const callerUid = authResult.uid;
 
   try {
     // Fetch booking, venue and owner data from Admin DB
@@ -127,10 +114,8 @@ export async function GET(
     const owner = ownerSnap.exists ? ownerSnap.data() : {};
 
     // Check permissions: booking owner, venue manager, or admin
-    const callerUid = decoded.uid;
-    const callerUserSnap = await db.collection("users").doc(callerUid).get();
-    const callerUser = callerUserSnap.exists ? callerUserSnap.data() : {};
-    const isAdminUser = callerUser?.role === "admin";
+    const callerRole = await getUserRole(callerUid);
+    const isAdminUser = callerRole === "admin";
 
     const managedBy = venue?.managedBy;
     const isVenueManager =
