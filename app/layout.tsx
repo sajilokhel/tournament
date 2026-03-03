@@ -17,12 +17,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://sajilokhel.com"),
   title: {
-    default: "Sajilokhel — Book Futsal Venues & Courts in Nepal",
+    default: "Sajilokhel | Book Sports Grounds in Nepal",
     template: "%s | Sajilokhel",
   },
   description:
-    "Book futsal venues and indoor courts across Nepal with Sajilokhel — real-time availability, secure payments, instant confirmation, and easy online booking for players and venue owners.",
-  keywords: ["futsal", "booking", "football", "sports", "ground", "nepal", "kathmandu", "sajilokhel"],
+    "Nepal's sports ground booking platform. Book futsal, cricket, badminton, basketball courts and more — real-time availability, secure eSewa payments, and instant confirmation for players and venue owners.",
+  keywords: ["futsal", "sports booking", "ground booking", "cricket", "badminton", "basketball", "nepal", "kathmandu", "sajilokhel"],
   authors: [{ name: "Sajilokhel Team" }],
   creator: "Sajilokhel",
   manifest: "/site.webmanifest",
@@ -44,9 +44,9 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "https://sajilokhel.com",
-    title: "Sajilokhel — Book Futsal Venues & Courts in Nepal",
+    title: "Sajilokhel | Book Sports Grounds in Nepal",
     description:
-      "Book futsal venues and indoor courts across Nepal with real-time availability, secure payments, and instant confirmations on Sajilokhel.",
+      "Nepal's sports ground booking platform. Find and book futsal, cricket, badminton courts and more with real-time availability and secure payments.",
     siteName: "Sajilokhel",
     images: [
       {
@@ -59,9 +59,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Sajilokhel — Book Futsal Venues & Courts in Nepal",
+    title: "Sajilokhel | Book Sports Grounds in Nepal",
     description:
-      "Book futsal venues and indoor courts across Nepal with Sajilokhel — real-time availability, secure payments, and instant confirmations.",
+      "Nepal's sports ground booking platform. Find and book futsal, cricket, badminton courts and more with real-time availability and secure payments.",
     images: ["/openGraphImage.png"],
   },
 };

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, query, orderBy, limit, where } from "firebase/firestore";
 
 const HomePageMap = dynamic(() => import("@/components/HomePageMap"), { ssr: false });
 
@@ -61,6 +63,51 @@ const Home = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<UserRole>(UserRole.PLAYER);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Live activity stats
+  const [venueCount, setVenueCount] = useState<number | null>(null);
+  const [activeBookingCount, setActiveBookingCount] = useState<number | null>(null);
+  const [recentInitials, setRecentInitials] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchLiveStats = async () => {
+      try {
+        // Venue count
+        const venueSnap = await getDocs(collection(db, "venues"));
+        setVenueCount(venueSnap.size);
+
+        // Active bookings (confirmed / pending_payment)
+        const bookingSnap = await getDocs(
+          query(
+            collection(db, "bookings"),
+            where("status", "in", ["confirmed", "CONFIRMED", "pending_payment"]),
+            limit(500)
+          )
+        );
+        setActiveBookingCount(bookingSnap.size);
+
+        // Recent unique booker initials (up to 3)
+        const recentSnap = await getDocs(
+          query(collection(db, "bookings"), orderBy("createdAt", "desc"), limit(20))
+        );
+        const seen = new Set<string>();
+        const initials: string[] = [];
+        recentSnap.docs.forEach((d) => {
+          const data = d.data() as any;
+          const name: string = data.customerName || data.userName || data.userId || "?";
+          const initial = name.trim().charAt(0).toUpperCase();
+          if (!seen.has(initial) && initials.length < 3) {
+            seen.add(initial);
+            initials.push(initial);
+          }
+        });
+        setRecentInitials(initials);
+      } catch {
+        // silently ignore — stats are non-critical
+      }
+    };
+    fetchLiveStats();
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,41 +252,41 @@ const Home = () => {
                       </span>
                     </div>
                     <div className="flex -space-x-2">
-                      <div className="w-7 h-7 rounded-full border-2 border-white dark:border-black bg-gray-600 overflow-hidden">
-                        <Image
-                          src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80"
-                          alt="User"
-                          width={28}
-                          height={28}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="w-7 h-7 rounded-full border-2 border-white dark:border-black bg-gray-500 overflow-hidden">
-                        <Image
-                          src="https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=100&q=80"
-                          alt="User"
-                          width={28}
-                          height={28}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="w-7 h-7 rounded-full border-2 border-white dark:border-black bg-orange-500 flex items-center justify-center text-[10px] font-bold text-white dark:text-black">
-                        8+
-                      </div>
+                      {recentInitials.length > 0 ? (
+                        recentInitials.map((initial, i) => (
+                          <div
+                            key={i}
+                            className="w-7 h-7 rounded-full border-2 border-white dark:border-black bg-orange-500 flex items-center justify-center text-[11px] font-bold text-white"
+                          >
+                            {initial}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="w-7 h-7 rounded-full border-2 border-white dark:border-black bg-gray-300 dark:bg-gray-700" />
+                      )}
+                      {activeBookingCount !== null && activeBookingCount > 3 && (
+                        <div className="w-7 h-7 rounded-full border-2 border-white dark:border-black bg-orange-500 flex items-center justify-center text-[10px] font-bold text-white dark:text-black">
+                          {activeBookingCount > 99 ? "99+" : `${activeBookingCount - recentInitials.length}+`}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-3 sm:gap-4 items-end">
                     <div>
-                      <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">12</div>
+                      <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                        {venueCount !== null ? venueCount : "—"}
+                      </div>
                       <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mt-1">
-                        Courts Open
+                        Venues
                       </div>
                     </div>
                     <div>
-                      <div className="text-2xl sm:text-3xl font-bold text-orange-500">45</div>
+                      <div className="text-2xl sm:text-3xl font-bold text-orange-500">
+                        {activeBookingCount !== null ? activeBookingCount : "—"}
+                      </div>
                       <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mt-1">
-                        Booking Now
+                        Active Bookings
                       </div>
                     </div>
                     <div className="flex flex-col justify-center">
@@ -257,29 +304,6 @@ const Home = () => {
               {/* Decorative elements behind */}
               <div className="absolute -top-6 -right-6 w-full h-full border-2 border-orange-500/20 rounded-2xl -z-10"></div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="border-y border-gray-200 dark:border-white/5 bg-white dark:bg-black/50 transition-colors">
-        <div className="max-w-7xl mx-auto px-6 py-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {[
-              { val: "50+", label: "Venues" },
-              { val: "10k+", label: "Active Players" },
-              { val: "25k+", label: "Bookings Made" },
-              { val: "4.8", label: "User Rating" },
-            ].map((stat, idx) => (
-              <div key={idx}>
-                <div className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-1 transition-colors">
-                  {stat.val}
-                </div>
-                <div className="text-sm text-gray-500 font-medium uppercase tracking-wider">
-                  {stat.label}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>
