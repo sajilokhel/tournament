@@ -2,16 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { DEFAULT_CANCELLATION_HOURS } from "@/lib/utils";
 import {
   collection,
-  getDocs,
-  query,
-  where,
   doc,
   getDoc,
   updateDoc,
-  Timestamp,
   addDoc,
   serverTimestamp,
 } from "firebase/firestore";
@@ -25,6 +20,9 @@ import {
   Banknote,
   AlertCircle,
   Info,
+  TrendingUp,
+  Wallet,
+  CheckCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -55,9 +53,13 @@ interface ManagerStats {
   totalBookings: number;
   physicalBookings: number;
   onlineBookings: number;
-  totalIncome: number; // Total value of all bookings
-  onlineIncome: number; // Income collected by us (eSewa)
-  safeOnlineIncome: number; // Online income that is safe to pay (past cancellation window)
+  totalIncome: number;      // Full face value of all confirmed bookings (display only)
+  physicalIncome: number;  // Cash collected by manager from physical bookings
+  onlineIncome: number;    // Advance actually collected by platform via eSewa
+  safeOnlineIncome: number; // Online income past the cancellation window (safe to pay out)
+  commissionPercentage: number;
+  commissionAmount: number;
+  netIncome: number;
 }
 
 export default function ManagerDetailsPage() {
@@ -71,8 +73,12 @@ export default function ManagerDetailsPage() {
     physicalBookings: 0,
     onlineBookings: 0,
     totalIncome: 0,
+    physicalIncome: 0,
     onlineIncome: 0,
     safeOnlineIncome: 0,
+    commissionPercentage: 0,
+    commissionAmount: 0,
+    netIncome: 0,
   });
   const [payoutAmount, setPayoutAmount] = useState("");
   const [payoutNotes, setPayoutNotes] = useState("");
@@ -97,87 +103,18 @@ export default function ManagerDetailsPage() {
         const userData = userDoc.data();
         setManager({ id: userDoc.id, ...userData });
         
-        // Set cancellation limit from user data or default
-        const limit = userData.cancellationHoursLimit !== undefined ? userData.cancellationHoursLimit : DEFAULT_CANCELLATION_HOURS;
-        setCancellationLimit(limit);
-
-        // 2. Fetch Venues managed by this user
-        const venuesQuery = query(
-          collection(db, "venues"),
-          where("managedBy", "==", id)
-        );
-        const venuesSnap = await getDocs(venuesQuery);
-        const venueIds = venuesSnap.docs.map((d) => d.id);
-
-        if (venueIds.length === 0) {
-          setLoading(false);
-          return;
+        // 2. Fetch stats from API (server-side calculation)
+        const token = await currentUser?.getIdToken();
+        const res = await fetch(`/api/managers/${id}/stats`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to load stats");
         }
-
-        // 3. Fetch Bookings for these venues
-        // Note: Firestore 'in' query is limited to 10. If a manager has > 10 venues, this needs batching.
-        // For now assuming < 10 venues per manager.
-        const bookingsQuery = query(
-          collection(db, "bookings"),
-          where("venueId", "in", venueIds)
-        );
-        const bookingsSnap = await getDocs(bookingsQuery);
-
-        let totalBookings = 0;
-        let physicalBookings = 0;
-        let onlineBookings = 0;
-        let totalIncome = 0;
-        let onlineIncome = 0;
-        let safeOnlineIncome = 0;
-
-        const now = new Date();
-
-        bookingsSnap.forEach((doc) => {
-          const b = doc.data();
-          // Only count confirmed/completed bookings
-          if (b.status !== "confirmed" && b.status !== "completed") return;
-
-          totalBookings++;
-          const amount = Number(b.amount || b.price || 0);
-          totalIncome += amount;
-
-          const method = (b.bookingType || "").toLowerCase();
-          const isOnline = method === "website" || method === "app";
-
-          if (isOnline) {
-            onlineBookings++;
-            onlineIncome += amount;
-
-            // Check if safe to pay (booking time is within X hours from now or in the past)
-            // Booking time construction:
-            const bookingDateStr = b.date; // "YYYY-MM-DD"
-            const bookingTimeStr = b.startTime; // "HH:mm"
-            const bookingDateTime = new Date(
-              `${bookingDateStr}T${bookingTimeStr}`
-            );
-
-            // Calculate hours difference
-            const diffMs = bookingDateTime.getTime() - now.getTime();
-            const diffHours = diffMs / (1000 * 60 * 60);
-
-            // If diffHours < limit, it means booking is either in past or within next X hours.
-            // User cannot cancel, so it's safe.
-            if (diffHours < limit) {
-              safeOnlineIncome += amount;
-            }
-          } else {
-            physicalBookings++;
-          }
-        });
-
-        setStats({
-          totalBookings,
-          physicalBookings,
-          onlineBookings,
-          totalIncome,
-          onlineIncome,
-          safeOnlineIncome,
-        });
+        const data = await res.json();
+        setStats(data.stats);
+        setCancellationLimit(data.cancellationLimit);
       } catch (error) {
         console.error("Error fetching manager details:", error);
         toast.error("Failed to load data");
@@ -261,9 +198,11 @@ export default function ManagerDetailsPage() {
 
   const totalPaidOut = manager.totalPaidOut || 0;
   
-  // Derived calculations based on user request
-  const physicalIncome = stats.totalIncome - stats.onlineIncome;
-  const heldByManager = physicalIncome + totalPaidOut;
+  // Derived calculations
+  // physicalIncome: cash the manager collected directly from walk-in bookings
+  // heldByManager: physical cash + whatever the platform already paid out to them
+  // heldByAdmin: online advance collected by platform that hasn't been paid out yet
+  const heldByManager = stats.physicalIncome + totalPaidOut;
   const heldByAdmin = stats.onlineIncome - totalPaidOut;
   const totalToBePaid = heldByAdmin; // All online income not yet paid out
   const actualPaymentToBePaid = stats.safeOnlineIncome - totalPaidOut; // Safe online income not yet paid out
@@ -290,7 +229,17 @@ export default function ManagerDetailsPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">All Income</CardTitle>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                All Income
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-3 w-3 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Face value of all confirmed bookings (online + physical). Online bookings only charged the advance (~16.6%) via eSewa; the rest is paid physically at the venue.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -304,7 +253,17 @@ export default function ManagerDetailsPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Held by Manager</CardTitle>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                Held by Manager
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-3 w-3 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Cash the manager directly collected from physical bookings, plus amounts the platform has already paid out to them.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -312,7 +271,7 @@ export default function ManagerDetailsPage() {
                 Rs. {heldByManager.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">
-                Physical ({physicalIncome.toLocaleString()}) + Paid Out ({totalPaidOut.toLocaleString()})
+                Physical ({stats.physicalIncome.toLocaleString()}) + Paid Out ({totalPaidOut.toLocaleString()})
               </p>
             </CardContent>
           </Card>
@@ -525,6 +484,98 @@ export default function ManagerDetailsPage() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Booking Breakdown */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Booking Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-0 divide-y">
+            {/* Physical Bookings Row */}
+            <div className="flex items-center justify-between py-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-orange-100 dark:bg-orange-900/30 p-2">
+                  <Users className="h-4 w-4 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Physical Bookings</p>
+                  <p className="text-xs text-muted-foreground">
+                    {stats.physicalBookings} booking{stats.physicalBookings !== 1 ? "s" : ""} · Cash collected by manager
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold">Rs. {stats.physicalIncome.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Paid to manager directly</p>
+              </div>
+            </div>
+
+            {/* Online Bookings Row */}
+            <div className="flex items-center justify-between py-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-2">
+                  <CreditCard className="h-4 w-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Online Bookings (eSewa)</p>
+                  <p className="text-xs text-muted-foreground">
+                    {stats.onlineBookings} booking{stats.onlineBookings !== 1 ? "s" : ""} · Advance collected via eSewa
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold">Rs. {stats.onlineIncome.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Held by admin</p>
+              </div>
+            </div>
+
+            {/* Commission Row — only shown when > 0 */}
+            {stats.commissionAmount > 0 && (
+              <div className="flex items-center justify-between py-4">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-red-100 dark:bg-red-900/30 p-2">
+                    <AlertCircle className="h-4 w-4 text-red-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Platform Commission</p>
+                    <p className="text-xs text-muted-foreground">
+                      {stats.commissionPercentage}% of online income
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-red-600">− Rs. {stats.commissionAmount.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Deducted from online income</p>
+                </div>
+              </div>
+            )}
+
+            {/* Net Payable Row */}
+            <div className="flex items-center justify-between py-4 bg-primary/5 rounded-lg px-3 mt-2">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-2">
+                  <Wallet className="h-4 w-4 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">We Will Pay You</p>
+                  <p className="text-xs text-muted-foreground">
+                    Safe online income{stats.commissionAmount > 0 ? " after commission" : ""} · minus already paid out
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-bold text-green-600">Rs. {actualPaymentToBePaid.toLocaleString()}</p>
+                <div className="flex items-center gap-1 justify-end mt-0.5">
+                  <CheckCircle className="h-3 w-3 text-green-500" />
+                  <p className="text-xs text-green-600 font-medium">Safe to pay now</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
