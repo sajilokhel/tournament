@@ -185,9 +185,11 @@ export async function POST(request: NextRequest) {
 
     // Compute amounts using venue price, slotDuration, and per-venue advance %
     const pricePerHour = Number(venue.pricePerHour || venue.price || 0);
-    const advancePercent = typeof venue.commissionPercentage === 'number'
-      ? venue.commissionPercentage
-      : DEFAULT_ADVANCE_PERCENT;
+    const advancePercent = typeof venue.advancePercentage === 'number'
+      ? venue.advancePercentage
+      : typeof venue.commissionPercentage === 'number'
+        ? venue.commissionPercentage
+        : DEFAULT_ADVANCE_PERCENT;
     const computed = computeAmountsFromVenue(
       pricePerHour,
       slotDuration,

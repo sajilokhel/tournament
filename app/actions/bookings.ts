@@ -43,9 +43,11 @@ export async function createBooking(
       throw new Error('Invalid venue pricing configuration');
     }
 
-    const advancePercent = typeof venueForPrice?.commissionPercentage === 'number'
-      ? venueForPrice.commissionPercentage
-      : DEFAULT_ADVANCE_PERCENT;
+    const advancePercent = typeof venueForPrice?.advancePercentage === 'number'
+      ? venueForPrice.advancePercentage
+      : typeof venueForPrice?.commissionPercentage === 'number'
+        ? venueForPrice.commissionPercentage
+        : DEFAULT_ADVANCE_PERCENT;
     const computed = computeAmountsFromVenue(pricePerHour, slotDuration, 1, advancePercent);
     if (!computed || typeof computed.totalAmount !== 'number' || computed.totalAmount <= 0) {
       throw new Error('Failed to compute booking amount');

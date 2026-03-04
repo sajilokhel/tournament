@@ -31,7 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Calendar, Settings, Users, Store, CreditCard, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { calculateCommission, getVenueCommission } from "@/lib/commission";
+import { calculateCommission, getVenuePlatformCommission } from "@/lib/commission";
 
 const ManagerDashboardPage = () => {
   const { user } = useAuth();
@@ -158,7 +158,7 @@ const ManagerDashboardPage = () => {
       let totalNetRevenue = 0;
       revenueByVenue.forEach((venueGross, vid) => {
         const vData = venuesMap.get(vid) || {};
-        const pct = getVenueCommission(vData) || 0;
+        const pct = getVenuePlatformCommission(vData) || 0;
         const c = calculateCommission(venueGross, pct);
         totalCommissionAmount += c.commissionAmount;
         totalNetRevenue += c.netRevenue;

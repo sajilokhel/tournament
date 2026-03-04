@@ -54,7 +54,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { calculateCommission, getVenueCommission } from "@/lib/commission";
+import { calculateCommission, getVenuePlatformCommission } from "@/lib/commission";
 import { DEFAULT_CANCELLATION_HOURS } from "@/lib/utils";
 
 interface PaymentRecord {
@@ -128,7 +128,7 @@ export default function ManagerPaymentsPage() {
 
       // Get commission percentage from first venue
       const firstVenueDoc = await getDoc(doc(db, "venues", venueIds[0]));
-      const commissionPercentage = firstVenueDoc.exists() ? getVenueCommission(firstVenueDoc.data()) : 0;
+      const commissionPercentage = firstVenueDoc.exists() ? getVenuePlatformCommission(firstVenueDoc.data()) : 0;
 
       // 3. Fetch Bookings for these venues
       const bookingsQuery = query(

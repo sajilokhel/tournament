@@ -34,10 +34,18 @@ export function calculateCommission(
 }
 
 /**
- * Get commission percentage from venue data, defaulting to 0 if not found
+ * Get platform commission percentage from venue data, defaulting to 0 if not found.
+ * This is the % the platform retains from the online advance payment before paying out to the manager.
  * @param venueData - Venue document data
- * @returns Commission percentage (0-100)
+ * @returns Platform commission percentage (0-100)
+ */
+export function getVenuePlatformCommission(venueData: any): number {
+  return venueData?.platformCommission ?? 0;
+}
+
+/**
+ * @deprecated Use getVenuePlatformCommission instead.
  */
 export function getVenueCommission(venueData: any): number {
-  return venueData?.commissionPercentage ?? 0;
+  return getVenuePlatformCommission(venueData);
 }

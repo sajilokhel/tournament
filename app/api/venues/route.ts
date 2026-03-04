@@ -110,7 +110,8 @@ export async function POST(req: Request) {
       address = null,
       imageUrls = [],
       pricePerHour,
-      commissionPercentage,
+      advancePercentage,
+      platformCommission,
       attributes = {},
       slotConfig,
     } = body;
@@ -131,9 +132,12 @@ export async function POST(req: Request) {
       address: address ? address.trim() : null,
       imageUrls,
       pricePerHour: parseFloat(pricePerHour),
-      commissionPercentage: typeof commissionPercentage === 'number'
-        ? Math.max(0, Math.min(100, commissionPercentage))
+      advancePercentage: typeof advancePercentage === 'number'
+        ? Math.max(0, Math.min(100, advancePercentage))
         : DEFAULT_ADVANCE_PERCENT,
+      platformCommission: typeof platformCommission === 'number'
+        ? Math.max(0, Math.min(100, platformCommission))
+        : 0,
       attributes,
       createdAt: FieldValue.serverTimestamp(),
       managedBy: uid,

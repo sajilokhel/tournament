@@ -42,7 +42,8 @@ type Venue = {
   id: string;
   name?: string;
   address?: string;
-  commissionPercentage?: number;
+  advancePercentage?: number;
+  platformCommission?: number;
   createdAt?: any;
 };
 
@@ -54,13 +55,15 @@ export default function AdminVenuesPage() {
   const [creating, setCreating] = useState<boolean>(false);
   const [newName, setNewName] = useState<string>("");
   const [newAddress, setNewAddress] = useState<string>("");
-  const [newCommission, setNewCommission] = useState<string>(String(DEFAULT_ADVANCE_PERCENT));
+  const [newAdvancePercent, setNewAdvancePercent] = useState<string>(String(DEFAULT_ADVANCE_PERCENT));
+  const [newPlatformCommission, setNewPlatformCommission] = useState<string>("0");
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>("");
   const [editAddress, setEditAddress] = useState<string>("");
-  const [editCommission, setEditCommission] = useState<string>("0");
+  const [editAdvancePercent, setEditAdvancePercent] = useState<string>("0");
+  const [editPlatformCommission, setEditPlatformCommission] = useState<string>("0");
 
   const fetchVenues = async () => {
     setLoading(true);
@@ -99,7 +102,8 @@ export default function AdminVenuesPage() {
     try {
       const token = await auth.currentUser?.getIdToken();
       if (!token) throw new Error("Not authenticated");
-      const commissionValue = Math.max(0, Math.min(100, parseFloat(newCommission) || 0));
+      const advanceValue = Math.max(0, Math.min(100, parseFloat(newAdvancePercent) || 0));
+      const platformValue = Math.max(0, Math.min(100, parseFloat(newPlatformCommission) || 0));
       const res = await fetch("/api/venues", {
         method: "POST",
         headers: {
@@ -109,7 +113,8 @@ export default function AdminVenuesPage() {
         body: JSON.stringify({
           name: newName.trim(),
           address: newAddress.trim() || null,
-          commissionPercentage: commissionValue,
+          advancePercentage: advanceValue,
+          platformCommission: platformValue,
           pricePerHour: 0,
           slotConfig: { slotDuration: 60, openTime: "06:00", closeTime: "22:00" },
         }),
@@ -118,7 +123,8 @@ export default function AdminVenuesPage() {
       if (!res.ok) throw new Error(data.error || "Create failed");
       setNewName("");
       setNewAddress("");
-      setNewCommission(String(DEFAULT_ADVANCE_PERCENT));
+      setNewAdvancePercent(String(DEFAULT_ADVANCE_PERCENT));
+      setNewPlatformCommission("0");
       toast.success("Venue created");
       fetchVenues();
     } catch (err: any) {
@@ -133,14 +139,16 @@ export default function AdminVenuesPage() {
     setEditingId(v.id);
     setEditName(v.name ?? "");
     setEditAddress(v.address ?? "");
-    setEditCommission(String(v.commissionPercentage ?? DEFAULT_ADVANCE_PERCENT));
+    setEditAdvancePercent(String(v.advancePercentage ?? DEFAULT_ADVANCE_PERCENT));
+    setEditPlatformCommission(String(v.platformCommission ?? 0));
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditName("");
     setEditAddress("");
-    setEditCommission("0");
+    setEditAdvancePercent("0");
+    setEditPlatformCommission("0");
   };
 
   const handleSaveEdit = async (id: string) => {
@@ -151,7 +159,8 @@ export default function AdminVenuesPage() {
     try {
       const token = await auth.currentUser?.getIdToken();
       if (!token) throw new Error("Not authenticated");
-      const commissionValue = Math.max(0, Math.min(100, parseFloat(editCommission) || 0));
+      const advanceValue = Math.max(0, Math.min(100, parseFloat(editAdvancePercent) || 0));
+      const platformValue = Math.max(0, Math.min(100, parseFloat(editPlatformCommission) || 0));
       const res = await fetch(`/api/venues/${id}`, {
         method: "PATCH",
         headers: {
@@ -161,7 +170,8 @@ export default function AdminVenuesPage() {
         body: JSON.stringify({
           name: editName.trim(),
           address: editAddress.trim() || null,
-          commissionPercentage: commissionValue,
+          advancePercentage: advanceValue,
+          platformCommission: platformValue,
         }),
       });
       const data = await res.json();
@@ -228,7 +238,7 @@ export default function AdminVenuesPage() {
         <CardContent>
           <form
             onSubmit={handleCreate}
-            className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4"
+            className="grid grid-cols-1 sm:grid-cols-5 gap-3 mb-4"
           >
             <div className="sm:col-span-1">
               <Input
@@ -250,10 +260,22 @@ export default function AdminVenuesPage() {
             <div className="sm:col-span-1">
               <Input
                 type="number"
-                placeholder="Advance % (0 = full upfront payment)"
-                value={newCommission}
-                onChange={(e) => setNewCommission(e.target.value)}
+                placeholder="Advance % (user pays online)"
+                value={newAdvancePercent}
+                onChange={(e) => setNewAdvancePercent(e.target.value)}
                 aria-label="Advance percentage"
+                min="0"
+                max="100"
+                step="0.1"
+              />
+            </div>
+            <div className="sm:col-span-1">
+              <Input
+                type="number"
+                placeholder="Platform commission %"
+                value={newPlatformCommission}
+                onChange={(e) => setNewPlatformCommission(e.target.value)}
+                aria-label="Platform commission percentage"
                 min="0"
                 max="100"
                 step="0.1"
@@ -268,7 +290,8 @@ export default function AdminVenuesPage() {
                 onClick={() => {
                   setNewName("");
                   setNewAddress("");
-                  setNewCommission(String(DEFAULT_ADVANCE_PERCENT));
+                  setNewAdvancePercent(String(DEFAULT_ADVANCE_PERCENT));
+                  setNewPlatformCommission("0");
                 }}
               >
                 Clear
@@ -293,7 +316,8 @@ export default function AdminVenuesPage() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Address</TableHead>
-                    <TableHead>Advance %</TableHead>
+                    <TableHead>Advance % (online)</TableHead>
+                    <TableHead>Platform Commission %</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -329,8 +353,8 @@ export default function AdminVenuesPage() {
                         {editingId === v.id ? (
                           <Input
                             type="number"
-                            value={editCommission}
-                            onChange={(e) => setEditCommission(e.target.value)}
+                            value={editAdvancePercent}
+                            onChange={(e) => setEditAdvancePercent(e.target.value)}
                             min="0"
                             max="100"
                             step="0.1"
@@ -338,7 +362,25 @@ export default function AdminVenuesPage() {
                           />
                         ) : (
                           <div className="text-sm font-medium">
-                            {v.commissionPercentage ?? 0}%
+                            {v.advancePercentage ?? DEFAULT_ADVANCE_PERCENT}%
+                          </div>
+                        )}
+                      </TableCell>
+
+                      <TableCell>
+                        {editingId === v.id ? (
+                          <Input
+                            type="number"
+                            value={editPlatformCommission}
+                            onChange={(e) => setEditPlatformCommission(e.target.value)}
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            aria-label="Platform commission percentage"
+                          />
+                        ) : (
+                          <div className="text-sm font-medium">
+                            {v.platformCommission ?? 0}%
                           </div>
                         )}
                       </TableCell>
