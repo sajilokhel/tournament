@@ -77,13 +77,13 @@ import { COLLECTIONS } from "@/lib/utils";
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const sdkError = requireAdminSDK();
   if (sdkError) return sdkError;
 
   try {
-    const venueId = params.id;
+    const { id: venueId } = await params;
     const body = await req.json();
     const authResult = await verifyRequestToken(req);
     if (authResult instanceof NextResponse) return authResult;
@@ -142,13 +142,13 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const sdkError = requireAdminSDK();
   if (sdkError) return sdkError;
 
   try {
-    const venueId = params.id;
+    const { id: venueId } = await params;
     const authResult = await verifyRequestToken(req);
     if (authResult instanceof NextResponse) return authResult;
     const { uid } = authResult;

@@ -60,6 +60,7 @@ export default function AdminVenuesPage() {
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>("");
   const [editAddress, setEditAddress] = useState<string>("");
   const [editAdvancePercent, setEditAdvancePercent] = useState<string>("0");
@@ -145,6 +146,7 @@ export default function AdminVenuesPage() {
 
   const cancelEdit = () => {
     setEditingId(null);
+    setSavingId(null);
     setEditName("");
     setEditAddress("");
     setEditAdvancePercent("0");
@@ -156,6 +158,7 @@ export default function AdminVenuesPage() {
       toast.error("Venue name cannot be empty.");
       return;
     }
+    setSavingId(id);
     try {
       const token = await auth.currentUser?.getIdToken();
       if (!token) throw new Error("Not authenticated");
@@ -180,8 +183,11 @@ export default function AdminVenuesPage() {
       cancelEdit();
       fetchVenues();
     } catch (err: any) {
+      const msg = err?.message || "Failed to update venue";
       console.error("Update venue failed", err);
-      toast.error(err?.message || "Failed to update venue");
+      toast.error(msg);
+    } finally {
+      setSavingId(null);
     }
   };
 
@@ -392,8 +398,9 @@ export default function AdminVenuesPage() {
                               <Button
                                 size="sm"
                                 onClick={() => handleSaveEdit(v.id)}
+                                disabled={savingId === v.id}
                               >
-                                Save
+                                {savingId === v.id ? "Saving…" : "Save"}
                               </Button>
                               <Button
                                 size="sm"

@@ -11,7 +11,7 @@ import { logPayment } from '@/lib/paymentLogger';
 import { bookSlot } from '@/lib/slotService.admin';
 import { getVenueSlots } from '@/lib/slotService';
 import { computeAmountsFromVenue, DEFAULT_ADVANCE_PERCENT } from '@/lib/pricing';
-import { HOLD_DURATION_MS, generateBookingId, COLLECTIONS } from '@/lib/utils';
+import { DEFAULT_CANCELLATION_HOURS, HOLD_DURATION_MS, generateBookingId, COLLECTIONS } from '@/lib/utils';
 
 export async function createBooking(
   token: string,
