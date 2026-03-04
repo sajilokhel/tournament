@@ -72,8 +72,7 @@ const Home = () => {
   const [activeBookingCount, setActiveBookingCount] = useState<number | null>(null);
   const [recentInitials, setRecentInitials] = useState<string[]>([]);
 
-  // APK download
-  const [apkUrl, setApkUrl] = useState<string | null>(null);
+
 
   useEffect(() => {
     const fetchLiveStats = async () => {
@@ -98,19 +97,6 @@ const Home = () => {
       }
     };
     fetchLiveStats();
-
-    // Fetch latest APK from GitHub releases
-    fetch("https://api.github.com/repos/sajilokhel/fursal_mobile/releases/latest")
-      .then((r) => r.json())
-      .then((data) => {
-        const apkAsset = data?.assets?.find(
-          (a: { name: string }) => a.name === "app-release.apk"
-        );
-        if (apkAsset?.browser_download_url) {
-          setApkUrl(apkAsset.browser_download_url);
-        }
-      })
-      .catch(() => {/* silently ignore */});
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -126,7 +112,7 @@ const Home = () => {
   return (
     <div className="min-h-screen overflow-x-hidden">
       {/* Hero Section */}
-      <section className="relative pt-24 pb-16 lg:pt-48 lg:pb-32 overflow-hidden">
+      <section className="relative pt-20 pb-12 lg:pt-28 lg:pb-20 overflow-hidden">
         {/* Decorative Background */}
         <div className="absolute inset-0 z-0">
           <div className="absolute top-0 right-0 w-2/3 h-full bg-gradient-to-l from-orange-100/50 to-transparent dark:from-orange-900/20 dark:to-transparent opacity-60 transition-colors duration-500" />
@@ -227,18 +213,15 @@ const Home = () => {
                 >
                   List Venue
                 </a>
-                {apkUrl && (
-                  <a
-                    href={apkUrl}
-                    download
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base rounded-full font-semibold transition-all duration-300 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/20"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18l-6-6h4V4h4v8h4l-6 6zM4 20h16" />
-                    </svg>
-                    Download App
-                  </a>
-                )}
+                <a
+                  href="/download"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base rounded-full font-semibold transition-all duration-300 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/20"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download App
+                </a>
               </div>
             </div>
 
