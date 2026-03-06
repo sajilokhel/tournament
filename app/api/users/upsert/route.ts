@@ -49,8 +49,9 @@
  *     does not accept an explicit `uid` in the request body.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/firebase-admin";
-import { verifyRequestToken, getUserRole, requireAdminSDK } from "@/lib/server/auth";
+import { db, auth } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
+import { extractBearerToken, getUserRole, requireAdminSDK } from "@/lib/server/auth";
 import { COLLECTIONS } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
@@ -61,10 +62,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { displayName, email, photoURL, role } = body;
 
-    // Authenticate user
-    const authResult = await verifyRequestToken(request);
-    if (authResult instanceof NextResponse) return authResult;
-    const uid = authResult.uid;
+    // Authenticate user — we need the full decoded token for email/name/picture fallbacks
+    const token = extractBearerToken(request);
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    let decoded: any;
+    try {
+      decoded = await auth.verifyIdToken(token);
+    } catch {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+    const uid = decoded.uid;
 
     // Determine role: default to 'user'. Only allow assigning 'manager' if caller is admin.
     let assignedRole = "user";
@@ -90,14 +97,14 @@ export async function POST(request: NextRequest) {
       email: email || decoded.email || null,
       displayName: displayName || decoded.name || null,
       photoURL: photoURL || decoded.picture || null,
-      lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+      lastSeen: FieldValue.serverTimestamp(),
     };
 
     if (!snap.exists) {
       await userRef.set({
         ...base,
         role: assignedRole,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       });
     } else {
       await userRef.set(base, { merge: true });

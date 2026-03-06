@@ -123,7 +123,7 @@ export function RegisterForm({
       });
       // Redirect to next; if next is not provided use role-specific fallback
       const destination =
-        next && next !== "/" ? next : role === "manager" ? "/manager" : "/";
+        next && next !== "/" ? next : role === "manager" ? "/manager/dashboard" : "/";
       router.replace(destination);
     } catch (err: any) {
       console.error("Email registration error:", err);
@@ -153,7 +153,7 @@ export function RegisterForm({
       });
       // Redirect to role-specific destination when `next` is not provided
       const destination =
-        next && next !== "/" ? next : role === "manager" ? "/manager" : "/";
+        next && next !== "/" ? next : role === "manager" ? "/manager/dashboard" : "/";
       router.replace(destination);
     } catch (err: any) {
       console.error("Google registration error:", err);

@@ -61,7 +61,7 @@
  *   - The `holdSlot` helper call is wrapped in try/catch and logged as non-fatal — failure there doesn't rollback the transaction.
  */
 import { NextRequest, NextResponse } from "next/server";
-import admin from "firebase-admin";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { db } from "@/lib/firebase-admin";
 import { holdSlot } from "@/lib/slotService.admin";
 import { verifyRequestToken, requireAdminSDK } from "@/lib/server/auth";
@@ -104,14 +104,14 @@ export async function POST(request: NextRequest) {
         if (
           expires &&
           expires.toMillis &&
-          expires.toMillis() > admin.firestore.Timestamp.now().toMillis()
+          expires.toMillis() > Timestamp.now().toMillis()
         ) {
           throw { status: 409, message: "Slot currently held" };
         }
       }
 
-      const now = admin.firestore.Timestamp.now();
-      const holdExpiresAt = admin.firestore.Timestamp.fromMillis(
+      const now = Timestamp.now();
+      const holdExpiresAt = Timestamp.fromMillis(
         now.toMillis() + holdDurationMinutes * 60 * 1000,
       );
 
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
         userId: uid,
         slotId,
         status: "PENDING_PAYMENT",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
         bookingExpiresAt: holdExpiresAt,
       };
       tx.set(bookingRef, bookingData);
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
         heldBy: uid,
         holdExpiresAt,
         bookingId: bookingRef.id,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
 
       return { bookingId: bookingRef.id };

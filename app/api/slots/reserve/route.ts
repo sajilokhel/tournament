@@ -61,7 +61,7 @@
  *     cause the reservation transaction to be rolled back.
  */
 import { NextRequest, NextResponse } from "next/server";
-import admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { db } from "@/lib/firebase-admin";
 import { reserveSlot } from "@/lib/slotService.admin";
 import { verifyRequestToken, isManagerOrAdmin, requireAdminSDK } from "@/lib/server/auth";
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
         notes: notes || null,
         bookingType: "physical",
         status: "confirmed",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       };
 
       tx.set(bookingRef, bookingData);
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
       tx.update(slotRef, {
         status: "RESERVED",
         bookingId: bookingRef.id,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
 
       return { bookingId: bookingRef.id };

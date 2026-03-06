@@ -69,7 +69,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { db } from "@/lib/firebase-admin";
 import { unbookSlot } from "@/lib/slotService.admin";
 import { verifyRequestToken, isManagerOrAdmin, requireAdminSDK } from "@/lib/server/auth";
@@ -112,8 +112,8 @@ export async function POST(request: NextRequest) {
       tx.delete(bookingRef);
       tx.update(slotRef, {
         status: "AVAILABLE",
-        bookingId: admin.firestore.FieldValue.delete(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        bookingId: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
       return { bookingData };
     });

@@ -37,12 +37,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (firebaseUser) {
         try {
           const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-          const userRole = userDoc.exists()
-            ? (userDoc.data().role as UserRole)
-            : null;
-          if (!userRole) {
-            throw new Error("User role not found");
-          }
+          const userRole: UserRole = userDoc.exists()
+            ? ((userDoc.data().role as UserRole) || "user")
+            : "user";
           // Attach role to the user object without spreading to preserve methods
           const authUser = firebaseUser as AuthUser;
           authUser.role = userRole;

@@ -2,6 +2,7 @@ import { db as clientDb } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp, doc, getDoc, query, where, limit, getDocs } from "firebase/firestore";
 import { db as adminDb, isAdminInitialized } from "@/lib/firebase-admin";
 import admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 export interface PaymentLogData {
   transactionUuid: string;
@@ -104,7 +105,7 @@ export async function logPayment(data: PaymentLogData) {
           managerId,
           venueName,
           userEmail,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
           dateString,
         } as any;
         await adminDb.collection('payments').add(paymentRecordAdmin);

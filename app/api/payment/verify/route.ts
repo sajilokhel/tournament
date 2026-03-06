@@ -144,7 +144,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { ESEWA_VERIFY_URL, ESEWA_SECRET_KEY } from "@/lib/esewa/config";
 import { db } from "@/lib/firebase-admin";
-import admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { bookSlot } from "@/lib/slotService.admin";
 import { logPayment } from "@/lib/paymentLogger";
 import { computeAmountsFromBooking } from "@/lib/pricing/pricing";
@@ -198,7 +198,7 @@ async function locateBookingByTxn(rawTxn: string) {
 async function markBookingFailed(bookingRef: any, reason: string) {
   await bookingRef.update({
     status: "payment_failed",
-    verificationFailedAt: admin.firestore.FieldValue.serverTimestamp(),
+    verificationFailedAt: FieldValue.serverTimestamp(),
     verificationFailureReason: reason,
   });
 }
@@ -456,12 +456,12 @@ export async function POST(request: NextRequest) {
         console.log("✅ Updating booking document...");
         await bookingRef.update({
           status: "confirmed",
-          paymentTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+          paymentTimestamp: FieldValue.serverTimestamp(),
           esewaTransactionCode: verificationData.ref_id,
           esewaTransactionUuid: verificationData.transaction_uuid,
           esewaStatus: verificationData.status,
           esewaAmount: verificationData.total_amount,
-          verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+          verifiedAt: FieldValue.serverTimestamp(),
         });
 
         // Log payment to history

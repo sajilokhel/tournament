@@ -1,5 +1,6 @@
 import "server-only";
 import admin from "firebase-admin";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { isAdminInitialized, db as adminDb } from "@/lib/firebase-admin";
 import { DEFAULT_TIMEZONE, generateBookingId, COLLECTIONS } from "@/lib/utils";
 
@@ -57,7 +58,7 @@ export async function bookSlot(
       bookingId: bookingData.bookingId,
       bookingType: bookingData.bookingType,
       status: bookingData.status,
-      createdAt: admin.firestore.Timestamp.now(),
+      createdAt: Timestamp.now(),
     };
 
     if (bookingData.customerName !== undefined) bookedSlot.customerName = bookingData.customerName;
@@ -66,9 +67,9 @@ export async function bookSlot(
     if (bookingData.userId !== undefined) bookedSlot.userId = bookingData.userId;
 
     tx.update(docRef, {
-      bookings: admin.firestore.FieldValue.arrayUnion(bookedSlot),
+      bookings: FieldValue.arrayUnion(bookedSlot),
       held,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
   });
 }
@@ -94,7 +95,7 @@ export async function initializeVenueSlots(
     bookings: [],
     held: [],
     reserved: [],
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   await db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId).set(venueSlots);
@@ -126,7 +127,7 @@ export async function holdSlot(
     const existingHold = (data.held || []).find((s: any) => s.date === date && s.startTime === startTime);
     // Do not allow renewing an existing unexpired hold (prevents extending)
     if (existingHold) {
-      const now = admin.firestore.Timestamp.now();
+      const now = Timestamp.now();
       if (existingHold.holdExpiresAt && existingHold.holdExpiresAt.toMillis() > now.toMillis()) {
         throw new Error("Slot is currently held");
       }
@@ -134,8 +135,8 @@ export async function holdSlot(
 
     const held = (data.held || []).filter((s: any) => !(s.date === date && s.startTime === startTime));
 
-    const now = admin.firestore.Timestamp.now();
-    const holdExpiresAt = admin.firestore.Timestamp.fromMillis(now.toMillis() + holdDurationMinutes * 60 * 1000);
+    const now = Timestamp.now();
+    const holdExpiresAt = Timestamp.fromMillis(now.toMillis() + holdDurationMinutes * 60 * 1000);
 
     const heldSlot: any = {
       date,
@@ -143,12 +144,12 @@ export async function holdSlot(
       userId,
       bookingId,
       holdExpiresAt,
-      createdAt: admin.firestore.Timestamp.now(),
+      createdAt: Timestamp.now(),
     };
 
     tx.update(docRef, {
       held: [...held, heldSlot],
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
   });
 }
@@ -171,7 +172,7 @@ export async function releaseHold(
 
     tx.update(docRef, {
       held,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
   });
 }
@@ -187,7 +188,7 @@ export async function cleanExpiredHolds(venueId: string): Promise<number> {
     if (!docSnap.exists) return;
 
     const data: any = docSnap.data();
-    const now = admin.firestore.Timestamp.now();
+    const now = Timestamp.now();
 
     const held = (data.held || []).filter((slot: any) => {
       const isExpired = slot.holdExpiresAt && slot.holdExpiresAt.toMillis() <= now.toMillis();
@@ -198,7 +199,7 @@ export async function cleanExpiredHolds(venueId: string): Promise<number> {
     if (removedCount > 0) {
       tx.update(docRef, {
         held,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
     }
   });
@@ -221,12 +222,12 @@ export async function reserveSlot(
     startTime,
     note: note || null,
     reservedBy,
-    reservedAt: admin.firestore.Timestamp.now(),
+    reservedAt: Timestamp.now(),
   };
 
   await db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId).update({
-    reserved: admin.firestore.FieldValue.arrayUnion(reservedSlot),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    reserved: FieldValue.arrayUnion(reservedSlot),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 
   const bookingId = generateBookingId("physical");
@@ -251,7 +252,7 @@ export async function unbookSlot(
 
     tx.update(docRef, {
       bookings,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
   });
 }
@@ -269,14 +270,14 @@ export async function blockSlot(
   const blockedSlot: any = {
     date,
     startTime,
-    blockedAt: admin.firestore.Timestamp.now(),
+    blockedAt: Timestamp.now(),
   };
   if (reason) blockedSlot.reason = reason;
   if (blockedBy) blockedSlot.blockedBy = blockedBy;
 
   await db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId).update({
-    blocked: admin.firestore.FieldValue.arrayUnion(blockedSlot),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    blocked: FieldValue.arrayUnion(blockedSlot),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 }
 
@@ -298,7 +299,7 @@ export async function unblockSlot(
 
     tx.update(docRef, {
       blocked,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
   });
 }
@@ -309,7 +310,7 @@ export async function updateSlotConfig(venueId: string, config: any): Promise<vo
 
   await db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueId).update({
     config,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 }
 

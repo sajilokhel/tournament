@@ -77,7 +77,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { db } from "@/lib/firebase-admin";
-import admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import {
   ESEWA_MERCHANT_CODE,
   ESEWA_SECRET_KEY,
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
           // still update booking even if venueSlots missing
           t.update(bookingRef, {
             esewaTransactionUuid: transactionUuid,
-            esewaInitiatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            esewaInitiatedAt: FieldValue.serverTimestamp(),
           });
           return;
         }
@@ -143,20 +143,20 @@ export async function POST(request: NextRequest) {
 
         t.update(venueRef, {
           held,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         });
 
         // Update booking as part of same transaction
         t.update(bookingRef, {
           esewaTransactionUuid: transactionUuid,
-          esewaInitiatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          esewaInitiatedAt: FieldValue.serverTimestamp(),
         });
       });
     } else {
       // No venueId; just update booking
       await bookingRef.update({
         esewaTransactionUuid: transactionUuid,
-        esewaInitiatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        esewaInitiatedAt: FieldValue.serverTimestamp(),
       });
     }
 
