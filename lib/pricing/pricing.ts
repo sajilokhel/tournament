@@ -13,7 +13,7 @@ export type ComputedAmounts = {
 // Default advance percentage applied when a new venue is created.
 // Represents the % of the total slot price the user pays online via eSewa at booking time.
 // The remaining balance is paid physically at the venue. Admin can override per-venue via advancePercentage.
-export const DEFAULT_ADVANCE_PERCENT = 16.6;
+export const DEFAULT_ADVANCE_PERCENT = 1;
 
 function toNumber(v: number | string | undefined | null): number {
   if (v === undefined || v === null) return 0;
