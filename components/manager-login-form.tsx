@@ -50,14 +50,7 @@ export function ManagerLoginForm({
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  const redirectToRegisterWithEmail = (userEmail?: string) => {
-    const url = `/auth/register/manager${
-      userEmail ? `?email=${encodeURIComponent(userEmail)}` : ""
-    }`;
-    router.replace(url);
-  };
-
-  const checkUserDocAndRedirect = async (uid: string, userEmail?: string) => {
+  const checkUserDocAndRedirect = async (uid: string) => {
     try {
       const userRef = doc(db, "users", uid);
       const snap = await getDoc(userRef);
@@ -74,9 +67,11 @@ export function ManagerLoginForm({
           toast.error(msg);
         }
       } else {
-        // If user doc not present, sign out and send to register
+        // User doc not found — manager accounts are created manually by admins
         await signOut(auth);
-        redirectToRegisterWithEmail(userEmail);
+        const msg = "Manager account not found. Please contact the admin to set up your account.";
+        setError(msg);
+        toast.error(msg);
       }
     } catch (err) {
       console.error("Failed to verify user doc:", err);
@@ -97,7 +92,7 @@ export function ManagerLoginForm({
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const user = cred.user;
       if (!user) throw new Error("No user returned from sign-in");
-      await checkUserDocAndRedirect(user.uid, user.email ?? undefined);
+      await checkUserDocAndRedirect(user.uid);
     } catch (err: any) {
       console.error("Email sign-in error:", err);
       const info = mapAuthError(err);
@@ -122,7 +117,7 @@ export function ManagerLoginForm({
       const cred = await signInWithPopup(auth, provider);
       const user = cred.user;
       if (!user) throw new Error("No user returned from Google sign-in");
-      await checkUserDocAndRedirect(user.uid, user.email ?? undefined);
+      await checkUserDocAndRedirect(user.uid);
     } catch (err: any) {
       console.error("Google sign-in error:", err);
       const info = mapAuthError(err);
@@ -256,16 +251,8 @@ export function ManagerLoginForm({
           </Button>
         </Field>
 
-        <div className="text-center text-sm">
-          <span className="text-muted-foreground">
-            Need a manager account?{" "}
-          </span>
-          <a
-            href="/auth/register/manager"
-            className="font-medium text-primary hover:underline underline-offset-4"
-          >
-            Register here
-          </a>
+        <div className="text-center text-sm text-muted-foreground">
+          Manager accounts are created by the admin.
         </div>
       </FieldGroup>
     </form>

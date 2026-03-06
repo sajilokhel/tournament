@@ -9,11 +9,10 @@ import {
   query,
   orderBy,
   limit,
-  updateDoc,
   deleteDoc,
   doc,
-  where,
 } from "firebase/firestore";
+import { auth } from "@/lib/firebase";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -85,7 +84,6 @@ export default function AdminUsersPage() {
 
   const toggleRole = async (u: UserDoc) => {
     if (!u.id) return;
-    // Prevent changing admin account role here for safety
     if (u.role === "admin") {
       toast.error("Cannot change role of an admin account.");
       return;
@@ -93,12 +91,28 @@ export default function AdminUsersPage() {
 
     const newRole = u.role === "manager" ? "user" : "manager";
     try {
-      await updateDoc(doc(db, "users", u.id), { role: newRole });
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error("Not authenticated");
+
+      const res = await fetch(`/api/admin/users/${u.id}/role`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ role: newRole }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.error || "Failed to update role");
+      }
+
       setUsers((prev) => prev.map((p) => (p.id === u.id ? { ...p, role: newRole } : p)));
       toast.success(`Role changed to ${newRole}`);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to toggle role", err);
-      toast.error("Failed to update role");
+      toast.error(err.message || "Failed to update role");
     }
   };
 
