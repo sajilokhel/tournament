@@ -42,7 +42,6 @@ export async function GET(request: NextRequest) {
     db
       .collection(COLLECTIONS.DUE_PAYMENTS)
       .where("managerId", "==", targetManagerId)
-      .orderBy("createdAt", "desc")
       .limit(200)
       .get(),
   ]);
@@ -57,14 +56,18 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  const duePayments = duePaymentsSnap.docs.map((d: QueryDocumentSnapshot) => {
-    const data = d.data();
-    return {
-      id: d.id,
-      ...data,
-      createdAt: data.createdAt?.toDate?.()?.toISOString() ?? null,
-    };
-  });
+  const duePayments = duePaymentsSnap.docs
+    .map((d: QueryDocumentSnapshot) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() ?? null,
+      };
+    })
+    .sort((a: any, b: any) =>
+      (b.createdAt ?? "").localeCompare(a.createdAt ?? ""),
+    );
 
   return NextResponse.json({ payments, duePayments });
 }

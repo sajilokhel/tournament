@@ -3,6 +3,7 @@
 import { Star, MapPin, Clock } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { SPORT_TYPE_LABELS, type SportType } from "@/lib/sports";
 
 interface VenueHeaderProps {
   venueId: string;
@@ -11,6 +12,7 @@ interface VenueHeaderProps {
   address?: string;
   averageRating?: number;
   reviewCount?: number;
+  sportType?: string;
 }
 
 const VenueHeader = ({
@@ -20,6 +22,7 @@ const VenueHeader = ({
   address,
   averageRating = 0,
   reviewCount = 0,
+  sportType,
 }: VenueHeaderProps) => {
   
   const [ratingBreakdown, setRatingBreakdown] = useState<Record<number, number>>({
@@ -62,9 +65,16 @@ const VenueHeader = ({
 
       {/* Venue Name */}
       <div>
-        <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 leading-tight mb-2">
-          {name}
-        </h1>
+        <div className="flex items-center gap-3 flex-wrap mb-2">
+          <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 leading-tight">
+            {name}
+          </h1>
+          {sportType && (
+            <Badge variant="secondary" className="text-sm capitalize">
+              {SPORT_TYPE_LABELS[sportType as SportType] ?? sportType}
+            </Badge>
+          )}
+        </div>
         {address && (
           <div className="flex items-center gap-2 text-gray-600">
             <MapPin className="w-4 h-4" />

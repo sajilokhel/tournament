@@ -179,6 +179,7 @@ const UserPanel = ({ venue }: UserPanelProps) => {
                 address={venue.address}
                 averageRating={venue.averageRating}
                 reviewCount={venue.reviewCount}
+                sportType={venue.sportType}
               />
 
             {/* Booking Section - Enhanced */}

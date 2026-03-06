@@ -81,6 +81,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { DEFAULT_TIMEZONE, COLLECTIONS } from "@/lib/utils";
 import { DEFAULT_ADVANCE_PERCENT } from "@/lib/pricing";
 import { verifyRequestToken, getUserRole, requireAdminSDK } from "@/lib/server/auth";
+import { SPORT_TYPES, type SportType } from "@/lib/sports";
 
 export async function POST(req: Request) {
   const sdkError = requireAdminSDK();
@@ -114,6 +115,7 @@ export async function POST(req: Request) {
       platformCommission,
       attributes = {},
       slotConfig,
+      sportType,
     } = body;
 
     if (!name || pricePerHour === undefined || pricePerHour === null || !slotConfig) {
@@ -127,6 +129,7 @@ export async function POST(req: Request) {
     const venueRef = await db.collection(COLLECTIONS.VENUES).add({
       name: name.trim(),
       description: description ? description.trim() : null,
+      sportType: SPORT_TYPES.includes(sportType) ? (sportType as SportType) : "futsal",
       latitude: latitude || null,
       longitude: longitude || null,
       address: address ? address.trim() : null,

@@ -20,6 +20,14 @@ import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import LocationPicker from "@/components/LocationPicker";
 import { Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { SPORT_TYPES, SPORT_TYPE_LABELS, type SportType } from "@/lib/sports";
 
 interface Attribute {
   key: string;
@@ -52,6 +60,7 @@ const AddGround = ({
   const [groundDescription, setGroundDescription] = useState("");
   const [groundPhotos, setGroundPhotos] = useState<string[]>([]);
   const [pricePerHour, setPricePerHour] = useState("");
+  const [sportType, setSportType] = useState<SportType>("futsal");
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   
   // Location
@@ -155,6 +164,7 @@ const AddGround = ({
         const payload = {
           name: groundName.trim(),
           description: groundDescription.trim() || null,
+          sportType,
           latitude,
           longitude,
           address: address.trim() || null,
@@ -197,6 +207,7 @@ const AddGround = ({
         setGroundDescription("");
         setGroundPhotos([]);
         setPricePerHour("");
+        setSportType("futsal");
         setAttributes([]);
         setLatitude(27.7172);
         setLongitude(85.3240);
@@ -257,6 +268,22 @@ const AddGround = ({
                 onChange={(e) => setGroundDescription(e.target.value)}
                 rows={4}
               />
+            </div>
+
+            <div>
+              <Label htmlFor="sportType">Sport Type *</Label>
+              <Select value={sportType} onValueChange={(v) => setSportType(v as SportType)}>
+                <SelectTrigger id="sportType">
+                  <SelectValue placeholder="Select sport type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SPORT_TYPES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {SPORT_TYPE_LABELS[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>

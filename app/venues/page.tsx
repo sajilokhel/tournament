@@ -17,6 +17,8 @@ import {
 import { Star, Map, List, MapPin, Filter } from "lucide-react";
 import dynamic from "next/dynamic";
 import { LocationPermissionBanner } from "@/components/LocationPermissionBanner";
+import { Badge } from "@/components/ui/badge";
+import { SPORT_TYPE_LABELS, type SportType } from "@/lib/sports";
 
 const PublicVenueMap = dynamic(() => import("@/components/PublicVenueMap"), {
   ssr: false,
@@ -257,7 +259,14 @@ const VenueResultList = ({ venues, setSelectedVenue }: { venues: Venue[]; setSel
               className="shadow-sm hover:shadow-md transition-shadow"
             >
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">{venue.name}</CardTitle>
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="text-base">{venue.name}</CardTitle>
+                  {venue.sportType && (
+                    <Badge variant="secondary" className="shrink-0 text-xs capitalize">
+                      {SPORT_TYPE_LABELS[venue.sportType as SportType] ?? venue.sportType}
+                    </Badge>
+                  )}
+                </div>
                 <div className="flex items-center pt-1">
                   {venue.averageRating && venue.averageRating > 0 ? (
                     <>
