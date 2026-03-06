@@ -63,7 +63,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { markBookingAsPaid } from "@/app/actions/bookings";
+
 
 const ManagerBookingsPage = () => {
   const { user } = useAuth();
@@ -271,14 +271,22 @@ const ManagerBookingsPage = () => {
 
   const handleMarkAsPaid = async () => {
     if (!selectedBooking || !user) return;
-    
+
     setIsProcessingPayment(true);
     try {
       const token = await user.getIdToken();
-      const result = await markBookingAsPaid(token, selectedBooking.id, paymentMethod);
-      
-      if (!result.success) {
-        throw new Error(result.error || "Failed to mark as paid");
+      const res = await fetch(`/api/manager/bookings/${selectedBooking.id}/mark-paid`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ paymentMethod }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.error || "Failed to mark as paid");
       }
 
       toast.success("Booking marked as paid.");

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import { Calendar, CheckCircle, XCircle, Clock, Filter } from "lucide-react";
 import {
   collection,
@@ -9,8 +10,6 @@ import {
   query,
   orderBy,
   limit,
-  updateDoc,
-  doc,
 } from "firebase/firestore";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -67,11 +66,27 @@ export default function AdminBookingsPage() {
 
   const updateStatus = async (id: string, status: string) => {
     try {
-      await updateDoc(doc(db, "bookings", id), { status });
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error("Not authenticated");
+
+      const res = await fetch(`/api/admin/bookings/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.error || "Failed to update status");
+      }
+
       setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status } : b)));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to update booking status", err);
-      alert("Failed to update booking. See console for details.");
+      alert(err.message || "Failed to update booking. See console for details.");
     }
   };
 

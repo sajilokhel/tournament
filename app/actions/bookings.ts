@@ -607,11 +607,14 @@ export async function markBookingAsPaid(
       return { success: false, error: "Invalid booking data" };
     }
 
-    // Verify manager
+    // Get manager UID first, then verify authorization
+    const managerId = await verifyUser(token);
     const isManager = await verifyManager(token, booking.venueId);
     if (!isManager) {
       return { success: false, error: "Unauthorized" };
     }
+
+    const paidAmount = booking.dueAmount || 0;
 
     // Update booking payment status
     await bookingRef.update({
@@ -621,7 +624,41 @@ export async function markBookingAsPaid(
       dueAmount: 0, // Clear due amount as it's paid
     });
 
+    // Log due payment record (non-fatal — don't fail the operation if this errors)
+    try {
+      const [venueSnap, userSnap] = await Promise.all([
+        db.collection(COLLECTIONS.VENUES).doc(booking.venueId).get(),
+        booking.userId
+          ? db.collection(COLLECTIONS.USERS).doc(booking.userId).get()
+          : Promise.resolve(null),
+      ]);
+      const venueName = venueSnap.exists ? (venueSnap.data() as any)?.name || "" : "";
+      const userData = userSnap?.exists ? (userSnap.data() as any) : null;
+      const userEmail = userData?.email || "";
+      const userName =
+        userData?.displayName || userData?.name || booking.customerName || "";
+
+      await db.collection(COLLECTIONS.DUE_PAYMENTS).add({
+        bookingId,
+        venueId: booking.venueId,
+        venueName,
+        userId: booking.userId || null,
+        userName,
+        userEmail,
+        managerId,
+        amount: paidAmount,
+        paymentMethod,
+        bookingDate: booking.date || "",
+        bookingStartTime: booking.startTime || "",
+        bookingEndTime: booking.endTime || "",
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    } catch (logErr) {
+      console.error("Failed to log due payment record (non-fatal):", logErr);
+    }
+
     revalidatePath("/manager/bookings");
+    revalidatePath("/manager/payments");
     return { success: true };
   } catch (error: any) {
     console.error("Error marking booking as paid:", error);

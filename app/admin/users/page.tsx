@@ -9,7 +9,6 @@ import {
   query,
   orderBy,
   limit,
-  deleteDoc,
   doc,
 } from "firebase/firestore";
 import { auth } from "@/lib/firebase";
@@ -118,19 +117,30 @@ export default function AdminUsersPage() {
 
   const removeUser = async (u: UserDoc) => {
     if (!u.id) return;
-    // Soft safety check
     const ok = window.confirm(
       `Remove user document for ${u.email ?? u.id}? This will delete the Firestore user document (does not delete Auth account).`,
     );
     if (!ok) return;
 
     try {
-      await deleteDoc(doc(db, "users", u.id));
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error("Not authenticated");
+
+      const res = await fetch(`/api/admin/users/${u.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.error || "Failed to delete user");
+      }
+
       setUsers((prev) => prev.filter((p) => p.id !== u.id));
       toast.success("User document removed");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to remove user", err);
-      toast.error("Failed to remove user");
+      toast.error(err.message || "Failed to remove user");
     }
   };
 

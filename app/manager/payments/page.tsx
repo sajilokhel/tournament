@@ -1,17 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { db } from "@/lib/firebase";
-import {
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  limit,
-  where,
-  Timestamp,
-} from "firebase/firestore";
-
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +39,8 @@ import {
   Info,
   Banknote,
   AlertCircle,
+  Receipt,
+  Coins,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,8 +57,25 @@ interface PaymentRecord {
   amount: number;
   status: "success" | "failure" | "pending" | "refunded";
   method: string;
-  createdAt: Timestamp;
+  createdAt: string | null;
   refId?: string;
+}
+
+interface DuePaymentRecord {
+  id: string;
+  bookingId: string;
+  venueId: string;
+  venueName?: string;
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+  managerId: string;
+  amount: number;
+  paymentMethod: "cash" | "online";
+  bookingDate?: string;
+  bookingStartTime?: string;
+  bookingEndTime?: string;
+  createdAt: string | null;
 }
 
 interface ManagerStats {
@@ -89,6 +97,9 @@ export default function ManagerPaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [duePayments, setDuePayments] = useState<DuePaymentRecord[]>([]);
+  const [duePaymentsLoading, setDuePaymentsLoading] = useState(true);
+  const [dueSearchTerm, setDueSearchTerm] = useState("");
   
   const [managerData, setManagerData] = useState<any>(null);
   const [stats, setStats] = useState<ManagerStats>({
@@ -126,30 +137,35 @@ export default function ManagerPaymentsPage() {
   const fetchPayments = async () => {
     if (!user) return;
     setLoading(true);
+    setDuePaymentsLoading(true);
     try {
-      // Query payments where managerId matches current user
-      const q = query(
-        collection(db, "payments"),
-        where("managerId", "==", user.uid),
-        orderBy("createdAt", "desc"),
-        limit(100)
-      );
-      const snap = await getDocs(q);
-      const list = snap.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as any),
-      })) as PaymentRecord[];
-      setPayments(list);
+      const token = await user.getIdToken();
+      const res = await fetch("/api/manager/payments", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to load payments");
+      }
+      const data = await res.json();
+      setPayments(data.payments ?? []);
+      setDuePayments(data.duePayments ?? []);
     } catch (err) {
       console.error("Error fetching payments:", err);
     } finally {
       setLoading(false);
+      setDuePaymentsLoading(false);
     }
+  };
+
+  const fetchDuePayments = async () => {
+    // No-op: handled by fetchPayments (single API call for both)
   };
 
   useEffect(() => {
     fetchPayments();
     fetchFinancials();
+    fetchDuePayments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -393,6 +409,158 @@ export default function ManagerPaymentsPage() {
           </Card>
         </div>
 
+      {/* Due Amount Payments Section */}
+      <Card className="border-2 border-orange-200 dark:border-orange-900">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-orange-500" />
+              <div>
+                <CardTitle className="text-orange-700 dark:text-orange-400">Due Amount Payments</CardTitle>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Payments collected from customers for booking due amounts
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Total Collected</p>
+                <p className="text-xl font-bold text-orange-600">
+                  Rs. {duePayments.reduce((s, p) => s + (p.amount || 0), 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="relative w-48">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  className="pl-8"
+                  value={dueSearchTerm}
+                  onChange={(e) => setDueSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0 sm:p-6">
+          {duePaymentsLoading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading due payments...</div>
+          ) : duePayments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Coins className="h-10 w-10 mb-3 opacity-20" />
+              <p>No due payments recorded yet.</p>
+              <p className="text-xs mt-1">Payments will appear here when you mark a booking due as paid.</p>
+            </div>
+          ) : (
+            <>
+              {/* Mobile Card View */}
+              <div className="block sm:hidden space-y-4 p-4">
+                {duePayments
+                  .filter((p) => {
+                    if (!dueSearchTerm.trim()) return true;
+                    const t = dueSearchTerm.toLowerCase();
+                    return (
+                      (p.userName?.toLowerCase() || "").includes(t) ||
+                      (p.userEmail?.toLowerCase() || "").includes(t) ||
+                      (p.venueName?.toLowerCase() || "").includes(t) ||
+                      (p.bookingId?.toLowerCase() || "").includes(t)
+                    );
+                  })
+                  .map((p) => (
+                    <div key={p.id} className="bg-orange-50 dark:bg-orange-950/20 rounded-lg p-4 space-y-3 border border-orange-100 dark:border-orange-900">
+                      <div className="flex justify-between items-start">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-sm">{p.userName || p.userEmail || "Walk-in"}</span>
+                          <span className="text-xs text-muted-foreground">{p.venueName || "Unknown Venue"}</span>
+                        </div>
+                        <Badge variant="outline" className={p.paymentMethod === "cash" ? "bg-green-50 text-green-700 border-green-200" : "bg-blue-50 text-blue-700 border-blue-200"}>
+                          {p.paymentMethod === "cash" ? "Cash" : "Online"}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-muted-foreground uppercase tracking-wider">Date Paid</span>
+                          <span>{p.createdAt ? format(new Date(p.createdAt), "MMM d, yyyy") : "N/A"}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-muted-foreground uppercase tracking-wider">Booking</span>
+                          <span>{p.bookingDate} {p.bookingStartTime && `${p.bookingStartTime}–${p.bookingEndTime}`}</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 border-t border-orange-100">
+                        <span className="text-xs font-mono text-muted-foreground">{p.bookingId?.slice(-8)}</span>
+                        <span className="font-bold text-orange-600">Rs. {(p.amount || 0).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date Paid</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Venue</TableHead>
+                      <TableHead>Booking</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {duePayments
+                      .filter((p) => {
+                        if (!dueSearchTerm.trim()) return true;
+                        const t = dueSearchTerm.toLowerCase();
+                        return (
+                          (p.userName?.toLowerCase() || "").includes(t) ||
+                          (p.userEmail?.toLowerCase() || "").includes(t) ||
+                          (p.venueName?.toLowerCase() || "").includes(t) ||
+                          (p.bookingId?.toLowerCase() || "").includes(t)
+                        );
+                      })
+                      .map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell className="whitespace-nowrap text-xs">
+                            {p.createdAt
+                              ? format(new Date(p.createdAt), "MMM d, yyyy HH:mm")
+                              : "N/A"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium text-sm">{p.userName || "Walk-in"}</span>
+                              {p.userEmail && (
+                                <span className="text-xs text-muted-foreground">{p.userEmail}</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">{p.venueName || "—"}</TableCell>
+                          <TableCell className="text-xs">
+                            <div className="flex flex-col">
+                              <span>{p.bookingDate}</span>
+                              {p.bookingStartTime && (
+                                <span className="text-muted-foreground">{p.bookingStartTime} – {p.bookingEndTime}</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={p.paymentMethod === "cash" ? "bg-green-50 text-green-700 border-green-200" : "bg-blue-50 text-blue-700 border-blue-200"}>
+                              {p.paymentMethod === "cash" ? "Cash" : "Online"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-orange-600">
+                            Rs. {(p.amount || 0).toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -455,8 +623,8 @@ export default function ManagerPaymentsPage() {
                       <div className="flex flex-col text-muted-foreground">
                         <span className="text-xs uppercase tracking-wider">Date</span>
                         <span className="text-gray-900">
-                          {payment.createdAt?.seconds
-                            ? format(new Date(payment.createdAt.seconds * 1000), "MMM d, yyyy")
+                          {payment.createdAt
+                            ? format(new Date(payment.createdAt), "MMM d, yyyy")
                             : "N/A"}
                         </span>
                       </div>
@@ -496,9 +664,9 @@ export default function ManagerPaymentsPage() {
                     {filteredPayments.map((payment) => (
                       <TableRow key={payment.id}>
                         <TableCell className="whitespace-nowrap text-xs">
-                          {payment.createdAt?.seconds
+                          {payment.createdAt
                             ? format(
-                                new Date(payment.createdAt.seconds * 1000),
+                                new Date(payment.createdAt),
                                 "MMM d, yyyy HH:mm"
                               )
                             : "N/A"}

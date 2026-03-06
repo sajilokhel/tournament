@@ -3,12 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import {
-  collection,
   doc,
   getDoc,
-  updateDoc,
-  addDoc,
-  serverTimestamp,
 } from "firebase/firestore";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -128,16 +124,29 @@ export default function ManagerDetailsPage() {
 
   const handleUpdateLimit = async () => {
     try {
-      await updateDoc(doc(db, "users", id as string), {
-        cancellationHoursLimit: cancellationLimit,
+      const token = await currentUser?.getIdToken();
+      if (!token) throw new Error("Not authenticated");
+
+      const res = await fetch(`/api/admin/managers/${id}/limit`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ hours: cancellationLimit }),
       });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.error || "Failed to update limit");
+      }
+
       toast.success("Cancellation limit updated");
       setIsLimitDialogOpen(false);
-      // Refresh data to recalculate safe income
-      window.location.reload(); 
-    } catch (error) {
+      window.location.reload();
+    } catch (error: any) {
       console.error("Error updating limit:", error);
-      toast.error("Failed to update limit");
+      toast.error(error.message || "Failed to update limit");
     }
   };
 
@@ -158,33 +167,37 @@ export default function ManagerDetailsPage() {
 
     setProcessingPayout(true);
     try {
-      const newPaidOut = currentPaidOut + amount;
+      const token = await currentUser?.getIdToken();
+      if (!token) throw new Error("Not authenticated");
 
-      // 1. Update Manager's totalPaidOut
-      await updateDoc(doc(db, "users", id as string), {
-        totalPaidOut: newPaidOut,
+      const res = await fetch(`/api/admin/managers/${id}/payout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amount,
+          transactionId,
+          notes: payoutNotes,
+        }),
       });
 
-      // 2. Create Payout Record
-      await addDoc(collection(db, "payouts"), {
-        managerId: id,
-        amount: amount,
-        date: serverTimestamp(),
-        transactionId: transactionId,
-        notes: payoutNotes,
-        adminId: currentUser?.uid || "unknown",
-        adminEmail: currentUser?.email || "unknown",
-      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.error || "Failed to record payout");
+      }
 
-      setManager((prev: any) => ({ ...prev, totalPaidOut: newPaidOut }));
+      const data = await res.json();
+      setManager((prev: any) => ({ ...prev, totalPaidOut: data.newPaidOut }));
       toast.success("Payout recorded successfully");
       setIsPayoutDialogOpen(false);
       setPayoutAmount("");
       setPayoutNotes("");
       setTransactionId("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error recording payout:", error);
-      toast.error("Failed to record payout");
+      toast.error(error.message || "Failed to record payout");
     } finally {
       setProcessingPayout(false);
     }

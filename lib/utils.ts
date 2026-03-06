@@ -24,6 +24,9 @@ export const COLLECTIONS = {
   USERS: "users",
   SLOTS: "slots",
   REVIEWS: "reviews",
+  DUE_PAYMENTS: "duePayments",
+  PAYOUTS: "payouts",
+  PAYMENTS: "payments",
 } as const;
 
 /**

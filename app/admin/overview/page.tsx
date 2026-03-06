@@ -8,7 +8,6 @@ import {
   query,
   where,
   getDocs,
-  updateDoc,
   doc,
   getDoc,
   orderBy,
@@ -200,29 +199,36 @@ export default function AdminPanel() {
     return { bookingsPerDay, statusData, pendingCount };
   }, [bookings]);
 
-  const approveBooking = async (id: string) => {
+  const updateBookingStatus = async (id: string, status: string) => {
     try {
-      await updateDoc(doc(db, "bookings", id), { status: "approved" });
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error("Not authenticated");
+
+      const res = await fetch(`/api/admin/bookings/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.error || "Failed to update booking");
+      }
+
       setBookings((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, status: "approved" } : b)),
+        prev.map((b) => (b.id === id ? { ...b, status } : b)),
       );
-    } catch (err) {
-      console.error("Approve failed", err);
-      alert("Failed to approve booking");
+    } catch (err: any) {
+      console.error("Booking status update failed", err);
+      alert(err.message || "Failed to update booking");
     }
   };
 
-  const rejectBooking = async (id: string) => {
-    try {
-      await updateDoc(doc(db, "bookings", id), { status: "rejected" });
-      setBookings((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, status: "rejected" } : b)),
-      );
-    } catch (err) {
-      console.error("Reject failed", err);
-      alert("Failed to reject booking");
-    }
-  };
+  const approveBooking = (id: string) => updateBookingStatus(id, "approved");
+  const rejectBooking = (id: string) => updateBookingStatus(id, "rejected");
 
   // If still loading or not authorized
   if (loading) {
@@ -455,16 +461,7 @@ export default function AdminPanel() {
                                 size="sm"
                                 variant="outline"
                                 className="h-7 text-xs"
-                                onClick={() => {
-                                  updateDoc(doc(db, "bookings", b.id), {
-                                    status: "pending",
-                                  })
-                                    .then(() => fetchDashboardData())
-                                    .catch((err) => {
-                                      console.error(err);
-                                      alert("Failed to set pending");
-                                    });
-                                }}
+                                onClick={() => updateBookingStatus(b.id, "pending").then(() => fetchDashboardData())}
                               >
                                 Reset
                               </Button>
