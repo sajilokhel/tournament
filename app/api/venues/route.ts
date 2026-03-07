@@ -15,13 +15,43 @@
  *     "name": string,                 // required
  *     "pricePerHour": number|string,  // required (string accepted if coming from form)
  *     "slotConfig": object,           // required (slot config used to initialize venueSlots.config)
- *     "description": string|null,
- *     "latitude": number|null,
- *     "longitude": number|null,
- *     "address": string|null,
- *     "imageUrls": string[],          // optional array of image urls
- *     "attributes": object            // optional arbitrary attributes
+ *     "description": string|null,     // optional
+ *     "latitude": number|null,        // optional
+ *     "longitude": number|null,       // optional
+ *     "address": string|null,         // optional
+ *     "imageUrls": string[],          // optional array of image urls (defaults to [])
+ *     "attributes": object,           // optional arbitrary attributes (defaults to {})
+ *     "sportType": string,            // optional, must be one of SPORT_TYPES; defaults to "futsal" when missing/invalid
+ *     "advancePercentage": number,    // optional 0-100, defaults to DEFAULT_ADVANCE_PERCENT
+ *     "platformCommission": number    // optional 0-100, defaults to 0
  *   }
+ *
+ * Notes on fields and defaults:
+ *   - `sportType`:
+ *       Values are defined in `@/lib/sports` (exported as `SPORT_TYPES`).
+ *       If a provided `sportType` is not in `SPORT_TYPES`, the route will
+ *       default the venue's `sportType` to `"futsal"`.
+ *
+ *   - `advancePercentage`:
+ *       If present and numeric, will be clamped to the [0, 100] range.
+ *       If omitted or invalid, defaults to `DEFAULT_ADVANCE_PERCENT`
+ *       (imported from `@/lib/pricing`).
+ *
+ *   - `platformCommission`:
+ *       If present and numeric, will be clamped to the [0, 100] range.
+ *       If omitted, defaults to `0`.
+ *
+ *   - `imageUrls`:
+ *       Optional array of strings. If not provided, an empty array is used.
+ *
+ *   - `attributes`:
+ *       Optional arbitrary object for extensible metadata (e.g. covered, turfType).
+ *       If not provided, an empty object is used.
+ *
+ *   - `slotConfig.timezone`:
+ *       The venueSlots `config` will always include a `timezone` property.
+ *       If `slotConfig.timezone` is not provided it defaults to `DEFAULT_TIMEZONE`
+ *       (imported from `@/lib/utils`, currently 'Asia/Kathmandu').
  *
  * Successful response:
  *   - 201 Created
@@ -47,11 +77,15 @@
  *     `managedBy` to the creating user's uid and `createdAt` server timestamp.
  *   - Initializes `venueSlots/{venueId}` with a canonical structure:
  *       {
- *         venueId, config: { ...slotConfig, timezone }, blocked: [], bookings: [], held: [], reserved: [], updatedAt
+ *         venueId,
+ *         config: { ...slotConfig, timezone },
+ *         blocked: [], bookings: [], held: [], reserved: [], updatedAt
  *       }
- *     The timezone defaults to 'Asia/Kathmandu' if not provided in slotConfig.
  *   - `pricePerHour` is coerced to a number using `parseFloat`. Ensure the
  *     client sends a numeric value (or parseable string).
+ *   - Minimal server-side validation is performed. If you need stricter
+ *     validation (types/formats/coordinate ranges), add additional checks
+ *     before creating the document.
  *
  * Example:
  *   Request:
@@ -60,8 +94,13 @@
  *     Body:
  *     {
  *       "name": "Green Field",
- *       "pricePerHour": 500,
- *       "slotConfig": { "slotDuration": 60, "timezone": "Asia/Kathmandu" }
+ *       "pricePerHour": "500",
+ *       "slotConfig": { "slotDuration": 60, "timezone": "Asia/Kathmandu" },
+ *       "sportType": "futsal",
+ *       "advancePercentage": 20,
+ *       "platformCommission": 5,
+ *       "imageUrls": ["https://.../1.jpg"],
+ *       "attributes": { "covered": true }
  *     }
  *
  *   Success Response:
@@ -70,9 +109,8 @@
  * Implementation notes:
  *   - This route depends on the Admin SDK being initialized. If the Admin
  *     SDK is not initialized, it returns a 500 with a clear error message.
- *   - Minimal server-side validation is performed. If you need stricter
- *     validation (types/formats/coordinate ranges), add additional checks
- *     before creating the document.
+ *   - The allowed sport types come from `@/lib/sports`. The implementation
+ *     will accept a `sportType` value only if it exists in `SPORT_TYPES`.
  */
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase-admin";
@@ -80,7 +118,11 @@ import admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { DEFAULT_TIMEZONE, COLLECTIONS } from "@/lib/utils";
 import { DEFAULT_ADVANCE_PERCENT } from "@/lib/pricing";
-import { verifyRequestToken, getUserRole, requireAdminSDK } from "@/lib/server/auth";
+import {
+  verifyRequestToken,
+  getUserRole,
+  requireAdminSDK,
+} from "@/lib/server/auth";
 import { SPORT_TYPES, type SportType } from "@/lib/sports";
 
 export async function POST(req: Request) {
@@ -118,7 +160,12 @@ export async function POST(req: Request) {
       sportType,
     } = body;
 
-    if (!name || pricePerHour === undefined || pricePerHour === null || !slotConfig) {
+    if (
+      !name ||
+      pricePerHour === undefined ||
+      pricePerHour === null ||
+      !slotConfig
+    ) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 },
@@ -129,18 +176,22 @@ export async function POST(req: Request) {
     const venueRef = await db.collection(COLLECTIONS.VENUES).add({
       name: name.trim(),
       description: description ? description.trim() : null,
-      sportType: SPORT_TYPES.includes(sportType) ? (sportType as SportType) : "futsal",
+      sportType: SPORT_TYPES.includes(sportType)
+        ? (sportType as SportType)
+        : "futsal",
       latitude: latitude || null,
       longitude: longitude || null,
       address: address ? address.trim() : null,
       imageUrls,
       pricePerHour: parseFloat(pricePerHour),
-      advancePercentage: typeof advancePercentage === 'number'
-        ? Math.max(0, Math.min(100, advancePercentage))
-        : DEFAULT_ADVANCE_PERCENT,
-      platformCommission: typeof platformCommission === 'number'
-        ? Math.max(0, Math.min(100, platformCommission))
-        : 0,
+      advancePercentage:
+        typeof advancePercentage === "number"
+          ? Math.max(0, Math.min(100, advancePercentage))
+          : DEFAULT_ADVANCE_PERCENT,
+      platformCommission:
+        typeof platformCommission === "number"
+          ? Math.max(0, Math.min(100, platformCommission))
+          : 0,
       attributes,
       createdAt: FieldValue.serverTimestamp(),
       managedBy: uid,
@@ -160,7 +211,10 @@ export async function POST(req: Request) {
       updatedAt: FieldValue.serverTimestamp(),
     };
 
-    await db.collection(COLLECTIONS.VENUE_SLOTS).doc(venueRef.id).set(venueSlots);
+    await db
+      .collection(COLLECTIONS.VENUE_SLOTS)
+      .doc(venueRef.id)
+      .set(venueSlots);
 
     return NextResponse.json({ id: venueRef.id }, { status: 201 });
   } catch (err: any) {
