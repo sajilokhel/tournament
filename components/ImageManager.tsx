@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { X, Upload, Loader2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
+import { useUploadThing } from "@/lib/uploadthing-client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ImageManagerProps {
   images: string[];
@@ -14,6 +16,28 @@ interface ImageManagerProps {
 const ImageManager = ({ images, onImagesChange }: ImageManagerProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const { user } = useAuth();
+
+  const { startUpload } = useUploadThing("imageUploader", {
+    headers: async () => {
+      if (!user) return {};
+      const token = await user.getIdToken();
+      return { Authorization: `Bearer ${token}` };
+    },
+    onClientUploadComplete: (res) => {
+      setIsUploading(false);
+      if (res && res.length > 0) {
+        const newUrls = res.map((f) => f.url);
+        onImagesChange([...images, ...newUrls]);
+        toast.success(`${res.length} image(s) uploaded successfully`);
+      }
+    },
+    onUploadError: (error) => {
+      setIsUploading(false);
+      console.error("Upload error:", error);
+      toast.error(`Upload failed: ${error.message}`);
+    },
+  });
 
   const handleRemoveImage = (index: number) => {
     const newImages = images.filter((_, i) => i !== index);
@@ -45,29 +69,11 @@ const ImageManager = ({ images, onImagesChange }: ImageManagerProps) => {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-
+    // Reset input so the same file can be selected again later
+    e.target.value = "";
     setIsUploading(true);
-    try {
-      // For now, we'll use a simple file reader to convert to data URLs
-      // In production, you should upload to a proper file storage service
-      const filePromises = Array.from(files).map((file) => {
-        return new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-      });
-
-      const newImageUrls = await Promise.all(filePromises);
-      onImagesChange([...images, ...newImageUrls]);
-      toast.success(`${files.length} image(s) uploaded successfully`);
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast.error("Failed to upload images");
-    } finally {
-      setIsUploading(false);
-    }
+    await startUpload(Array.from(files));
+    // isUploading is reset inside onClientUploadComplete / onUploadError
   };
 
   return (
