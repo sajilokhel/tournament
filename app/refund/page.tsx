@@ -19,9 +19,9 @@ export default function RefundPage() {
   const bookingId = searchParams.get("bookingId");
 
   // Placeholder contact details — update as needed in production
-  const phone = "+977-9812345678";
-  const whatsappNumber = "9779812345678"; // without + for wa.me
-  const email = "support@example.com";
+  const phone = "+977-9768704211";
+  const whatsappNumber = "9779768704211"; // without + for wa.me
+  const email = "contact@sajilokhel.com";
 
   return (
     <div className="container mx-auto px-4 pt-24 pb-8 max-w-3xl">
