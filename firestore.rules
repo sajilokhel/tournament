@@ -33,8 +33,9 @@ service cloud.firestore {
     match /users/{userId} {
       // Reads allowed for authenticated users (to get role, etc.)
       allow read: if isAuthenticated();
-      // All writes to user documents must go through server-side endpoints (admin SDK).
-      allow write: if false;
+      // Users can delete their own documents. All other writes (creates/updates) must go through server-side endpoints (admin SDK).
+      allow delete: if isOwner(userId);
+      allow create, update: if false;
     }
     
     // Venues collection

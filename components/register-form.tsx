@@ -41,6 +41,7 @@ export function RegisterForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const next = searchParams?.get("next") ?? "/";
 
@@ -111,6 +112,10 @@ export function RegisterForm({
       setError("Passwords do not match.");
       return;
     }
+    if (!acceptedTerms) {
+      setError("You must accept the terms and conditions.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -144,8 +149,13 @@ export function RegisterForm({
   };
 
   const handleGoogleRegister = async () => {
-    setLoading(true);
     setError(null);
+    if (!acceptedTerms) {
+      setError("You must accept the terms and conditions.");
+      return;
+    }
+
+    setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
@@ -282,6 +292,27 @@ export function RegisterForm({
               </p>
             )}
           </FieldContent>
+        </Field>
+
+        <Field>
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="terms"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-600 cursor-pointer"
+            />
+            <label
+              htmlFor="terms"
+              className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              I accept the{" "}
+              <a href="/privacy-policy" className="text-orange-600 hover:underline">
+                Terms and Conditions & Privacy Policy
+              </a>
+            </label>
+          </div>
         </Field>
 
         <Field>

@@ -117,8 +117,8 @@ const Footer = () => {
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                 <Phone className="w-4 h-4 flex-shrink-0" />
-                <a href="tel:+9779800000000" className="hover:text-orange-500 transition-colors">
-                  +977 980-0000000
+                <a href="tel:+9779768704211" className="hover:text-orange-500 transition-colors">
+                  +977 976-8704211
                 </a>
               </li>
               <li className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
@@ -137,7 +137,7 @@ const Footer = () => {
             © {year} Sajilokhel. All rights reserved.
           </p>
           <div className="flex gap-6 text-xs text-gray-500 dark:text-gray-400">
-            <Link href="#" className="hover:text-orange-500 transition-colors">
+            <Link href="/privacy-policy" className="hover:text-orange-500 transition-colors">
               Privacy Policy
             </Link>
             <Link href="#" className="hover:text-orange-500 transition-colors">
